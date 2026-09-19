@@ -20,7 +20,7 @@ func (c *Collector) InitNetstatic() {
 		log.Println("Failed to get interface list for netstatic:", err)
 	}
 	err = netstatic.SetNewConfig(netstatic.NetStaticConfig{
-		Nics: nics,
+		NICs: nics,
 	})
 	if err != nil {
 		log.Println("Failed to set netstatic config:", err)

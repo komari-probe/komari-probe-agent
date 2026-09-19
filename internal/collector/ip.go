@@ -18,7 +18,7 @@ var (
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				dialer := connectivity.GetNetDialer(15 * time.Second)
+				dialer := connectivity.NewNetDialer(15 * time.Second)
 				return dialer.DialContext(ctx, "tcp4", addr) // 锁v4防止出现问题
 			},
 			MaxIdleConns:          10,
@@ -32,7 +32,7 @@ var (
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				dialer := connectivity.GetNetDialer(15 * time.Second)
+				dialer := connectivity.NewNetDialer(15 * time.Second)
 				return dialer.DialContext(ctx, "tcp6", addr) // 锁v6防止出现问题
 			},
 			MaxIdleConns:          10,
@@ -120,14 +120,14 @@ func GetIPv6Address() (string, error) {
 	return "", nil
 }
 
-func (c *Collector) GetIPAddress() (ipv4, ipv6 string, err error) {
+func (c *Collector) IPAddresses() (ipv4, ipv6 string, err error) {
 
-	if c.options.GetIPAddrFromNIC {
-		allowNics, err := c.InterfaceList()
+	if c.options.GetIPAddressFromNIC {
+		allowNICs, err := c.InterfaceList()
 		if err != nil {
 			log.Printf("Get Interface List Error: %v", err)
 		} else {
-			ipv4, ipv6 = getIPFromInterfaces(allowNics)
+			ipv4, ipv6 = getIPFromInterfaces(allowNICs)
 			if ipv4 != "" || ipv6 != "" {
 				log.Printf("Get IP from NIC - IPv4: %s, IPv6: %s", ipv4, ipv6)
 				return ipv4, ipv6, nil

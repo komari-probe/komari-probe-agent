@@ -13,7 +13,7 @@ func newCheckMemCmd(cfg *config.Config) *cobra.Command {
 		Use:   "check-mem",
 		Short: "Check memory usage",
 		Long:  `Check memory usage`,
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			log.Println("--- Memory Check ---")
 
 			// Print raw /proc/meminfo if on Linux
@@ -32,6 +32,8 @@ func newCheckMemCmd(cfg *config.Config) *cobra.Command {
 				log.Printf("Zswap:        %d MiB", info.Zswap/1024/1024)
 				log.Printf("Zswapped:     %d MiB", info.Zswapped/1024/1024)
 				log.Println("---------------------")
+			} else {
+				log.Printf("Unable to read /proc/meminfo: %v", err)
 			}
 
 			printRamInfo := func(info collector.RamInfo) {

@@ -9,17 +9,17 @@ type Config struct {
 	MaxRetries          int     `json:"max_retries" env:"AGENT_MAX_RETRIES"`                       // 最大重试次数
 	ReconnectInterval   int     `json:"reconnect_interval" env:"AGENT_RECONNECT_INTERVAL"`         // 重连间隔，单位秒
 	InfoReportInterval  int     `json:"info_report_interval" env:"AGENT_INFO_REPORT_INTERVAL"`     // 基础信息上报间隔，单位分钟
-	IncludeNics         string  `json:"include_nics" env:"AGENT_INCLUDE_NICS"`                     // 仅统计网卡，逗号分隔的网卡名称列表，支持通配符
-	ExcludeNics         string  `json:"exclude_nics" env:"AGENT_EXCLUDE_NICS"`                     // 统计时排除的网卡，逗号分隔的网卡名称列表，支持通配符
+	IncludeNICs         string  `json:"include_nics" env:"AGENT_INCLUDE_NICS"`                     // 仅统计网卡，逗号分隔的网卡名称列表，支持通配符
+	ExcludeNICs         string  `json:"exclude_nics" env:"AGENT_EXCLUDE_NICS"`                     // 统计时排除的网卡，逗号分隔的网卡名称列表，支持通配符
 	IncludeMountpoints  string  `json:"include_mountpoints" env:"AGENT_INCLUDE_MOUNTPOINTS"`       // 磁盘统计的包含挂载点列表，使用分号分隔
 	MonthRotate         int     `json:"month_rotate" env:"AGENT_MONTH_ROTATE"`                     // 流量统计的月份重置日期（0表示禁用）
 	MemoryIncludeCache  bool    `json:"memory_include_cache" env:"AGENT_MEMORY_INCLUDE_CACHE"`     // 包括缓存/缓冲区的内存使用情况
 	MemoryReportRawUsed bool    `json:"memory_report_raw_used" env:"AGENT_MEMORY_REPORT_RAW_USED"` // 使用原始内存使用情况报告
 	CustomDNS           string  `json:"custom_dns" env:"AGENT_CUSTOM_DNS"`                         // 使用的自定义DNS服务器
 	EnableGPU           bool    `json:"enable_gpu" env:"AGENT_ENABLE_GPU"`                         // 启用详细GPU监控
-	CustomIpv4          string  `json:"custom_ipv4" env:"AGENT_CUSTOM_IPV4"`                       // 自定义 IPv4 地址
-	CustomIpv6          string  `json:"custom_ipv6" env:"AGENT_CUSTOM_IPV6"`                       // 自定义 IPv6 地址
-	GetIpAddrFromNic    bool    `json:"get_ip_addr_from_nic" env:"AGENT_GET_IP_ADDR_FROM_NIC"`     // 从网卡获取IP地址
+	CustomIPv4          string  `json:"custom_ipv4" env:"AGENT_CUSTOM_IPV4"`                       // 自定义 IPv4 地址
+	CustomIPv6          string  `json:"custom_ipv6" env:"AGENT_CUSTOM_IPV6"`                       // 自定义 IPv6 地址
+	GetIPAddressFromNIC bool    `json:"get_ip_addr_from_nic" env:"AGENT_GET_IP_ADDR_FROM_NIC"`     // 从网卡获取IP地址
 	HostProc            string  `json:"host_proc" env:"HOST_PROC"`                                 // 容器环境下宿主机/proc目录的挂载点，用于监控宿主机进程
 	ConfigFile          string  `json:"config_file" env:"AGENT_CONFIG_FILE"`                       // JSON配置文件路径
 	DisableCompression  bool    `json:"disable_compression" env:"AGENT_DISABLE_COMPRESSION"`       // 禁用v2传输压缩

@@ -30,7 +30,7 @@ func NewWebSocketDialer(options WebSocketDialerOptions) *websocket.Dialer {
 
 	dialer := &websocket.Dialer{
 		HandshakeTimeout:  options.HandshakeTimeout,
-		NetDialContext:    GetDialContextWithPreference(options.DialTimeout, options.PreferIPVersion),
+		NetDialContext:    NewDialContextWithPreference(options.DialTimeout, options.PreferIPVersion),
 		Proxy:             http.ProxyFromEnvironment,
 		EnableCompression: options.EnableCompression,
 	}
@@ -57,12 +57,6 @@ func (conn *SafeConn) WriteMessage(messageType int, data []byte) error {
 	return conn.conn.WriteMessage(messageType, data)
 }
 
-func (conn *SafeConn) WriteJSON(value any) error {
-	conn.mu.Lock()
-	defer conn.mu.Unlock()
-	return conn.conn.WriteJSON(value)
-}
-
 func (conn *SafeConn) Close() error {
 	conn.mu.Lock()
 	defer conn.mu.Unlock()
@@ -71,18 +65,4 @@ func (conn *SafeConn) Close() error {
 
 func (conn *SafeConn) ReadMessage() (int, []byte, error) {
 	return conn.conn.ReadMessage()
-}
-
-func (conn *SafeConn) ReadJSON(value any) error {
-	return conn.conn.ReadJSON(value)
-}
-
-func (conn *SafeConn) SetReadDeadline(deadline time.Time) error {
-	return conn.conn.SetReadDeadline(deadline)
-}
-
-func (conn *SafeConn) GetConn() *websocket.Conn {
-	conn.mu.Lock()
-	defer conn.mu.Unlock()
-	return conn.conn
 }

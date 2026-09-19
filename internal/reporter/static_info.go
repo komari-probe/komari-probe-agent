@@ -31,7 +31,7 @@ func (r *Reporter) uploadBasicInfo() error {
 
 	osname := collector.OSName()
 	kernelVersion := collector.KernelVersion()
-	ipv4, ipv6, _ := r.collector.GetIPAddress()
+	ipv4, ipv6, _ := r.collector.IPAddresses()
 
 	data := map[string]any{
 		"cpu_name":           cpu.CPUName,

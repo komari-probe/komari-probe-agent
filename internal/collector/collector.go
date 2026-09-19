@@ -3,15 +3,15 @@ package collector
 // Options contains the collection-specific portion of the Agent configuration.
 // A Collector owns an immutable copy for the duration of one Agent run.
 type Options struct {
-	IncludeNics         string
-	ExcludeNics         string
+	IncludeNICs         string
+	ExcludeNICs         string
 	IncludeMountpoints  string
 	MonthRotate         int
 	MemoryIncludeCache  bool
 	MemoryReportRawUsed bool
 	CustomIPv4          string
 	CustomIPv6          string
-	GetIPAddrFromNIC    bool
+	GetIPAddressFromNIC bool
 	HostProc            string
 }
 

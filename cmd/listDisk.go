@@ -23,12 +23,15 @@ func newListDiskCmd(cfg *config.Config) *cobra.Command {
 				return
 			}
 			log.Println("All Disk Partitions:")
-			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "Mountpoint\tFstype")
+			table := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
+			fmt.Fprintln(table, "Mountpoint\tFilesystem")
 			for _, part := range dl {
-				fmt.Fprintf(w, "%s\t%s\n", part.Mountpoint, part.Fstype)
+				fmt.Fprintf(table, "%s\t%s\n", part.Mountpoint, part.Fstype)
 			}
-			_ = w.Flush()
+			if err := table.Flush(); err != nil {
+				log.Println("Failed to write disk list:", err)
+				return
+			}
 			hostCollector := collector.New(collector.Options{IncludeMountpoints: cfg.IncludeMountpoints})
 			diskList, err := hostCollector.DiskList()
 			if err != nil {
