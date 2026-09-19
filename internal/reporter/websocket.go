@@ -3,7 +3,6 @@ package reporter
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,7 +19,6 @@ import (
 	v2 "github.com/komari-probe/komari-probe-agent/internal/protocol/v2"
 	"github.com/komari-probe/komari-probe-agent/internal/task"
 	"github.com/komari-probe/komari-probe-agent/pkg/idna"
-	"github.com/komari-probe/komari-probe-agent/pkg/ws"
 )
 
 var (
@@ -35,7 +33,7 @@ const (
 )
 
 func EstablishWebSocketConnection() {
-	var conn *ws.SafeConn
+	var conn *connectivity.SafeConn
 	defer func() {
 		if conn != nil {
 			conn.Close()
@@ -140,7 +138,7 @@ func buildWebSocketEndpoint() string {
 	return websocketEndpoint
 }
 
-func runPostFallback(websocketEndpoint string, interval float64) (*ws.SafeConn, error) {
+func runPostFallback(websocketEndpoint string, interval float64) (*connectivity.SafeConn, error) {
 	log.Println("Entering v2 POST fallback mode")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -329,8 +327,14 @@ func markV2EventSeen(id string) bool {
 	return true
 }
 
-func connectWebSocket(websocketEndpoint string) (*ws.SafeConn, error) {
-	dialer := newWSDialer()
+func connectWebSocket(websocketEndpoint string) (*connectivity.SafeConn, error) {
+	dialer := connectivity.NewWebSocketDialer(connectivity.WebSocketDialerOptions{
+		HandshakeTimeout:  15 * time.Second,
+		DialTimeout:       15 * time.Second,
+		PreferIPVersion:   flags.PreferIPVersion,
+		IgnoreUnsafeCert:  flags.IgnoreUnsafeCert,
+		EnableCompression: !flags.DisableCompression,
+	})
 
 	conn, resp, err := dialer.Dial(websocketEndpoint, nil)
 	if err != nil {
@@ -340,10 +344,10 @@ func connectWebSocket(websocketEndpoint string) (*ws.SafeConn, error) {
 		return nil, err
 	}
 
-	return ws.NewSafeConn(conn), nil
+	return connectivity.NewSafeConn(conn), nil
 }
 
-func handleWebSocketMessages(conn *ws.SafeConn, done chan<- struct{}) {
+func handleWebSocketMessages(conn *connectivity.SafeConn, done chan<- struct{}) {
 	defer close(done)
 	for {
 		_, message_raw, err := conn.ReadMessage()
@@ -365,7 +369,7 @@ func handleWebSocketMessages(conn *ws.SafeConn, done chan<- struct{}) {
 	}
 }
 
-func processV2Event(conn *ws.SafeConn, method string, params interface{}, eventID string) bool {
+func processV2Event(conn *connectivity.SafeConn, method string, params interface{}, eventID string) bool {
 	if !markV2EventSeen(eventID) {
 		return true
 	}
@@ -389,20 +393,4 @@ func processV2Event(conn *ws.SafeConn, method string, params interface{}, eventI
 		log.Printf("unknown v2 event method %s", method)
 	}
 	return false
-}
-
-// connectWebSocket attempts to establish a WebSocket connection and upload basic info
-
-// newWSDialer 构造统一的 WebSocket 拨号器（自定义解析、IPv4/IPv6 动态排序、可选 TLS 忽略）
-func newWSDialer() *websocket.Dialer {
-	d := &websocket.Dialer{
-		HandshakeTimeout:  15 * time.Second,
-		NetDialContext:    connectivity.GetDialContextWithPreference(15*time.Second, flags.PreferIPVersion),
-		Proxy:             http.ProxyFromEnvironment,
-		EnableCompression: !flags.DisableCompression,
-	}
-	if flags.IgnoreUnsafeCert {
-		d.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	}
-	return d
 }
