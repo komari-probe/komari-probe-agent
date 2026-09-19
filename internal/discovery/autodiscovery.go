@@ -68,20 +68,20 @@ func loadAutoDiscoveryConfig() (*AutoDiscoveryConfig, error) {
 	}
 
 	// 解析JSON
-	var config AutoDiscoveryConfig
-	if err := json.Unmarshal(data, &config); err != nil {
+	var autoDiscoveryConfig AutoDiscoveryConfig
+	if err := json.Unmarshal(data, &autoDiscoveryConfig); err != nil {
 		return nil, fmt.Errorf("failed to parse auto-discovery config: %v", err)
 	}
 
-	return &config, nil
+	return &autoDiscoveryConfig, nil
 }
 
 // saveAutoDiscoveryConfig 保存自动发现配置
-func saveAutoDiscoveryConfig(config *AutoDiscoveryConfig) error {
+func saveAutoDiscoveryConfig(autoDiscoveryConfig *AutoDiscoveryConfig) error {
 	configPath := getAutoDiscoveryFilePath()
 
 	// 序列化为JSON
-	data, err := json.MarshalIndent(config, "", "  ")
+	data, err := json.MarshalIndent(autoDiscoveryConfig, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal auto-discovery config: %v", err)
 	}
@@ -160,12 +160,12 @@ func registerWithAutoDiscovery() error {
 	}
 
 	// 保存配置
-	config := &AutoDiscoveryConfig{
+	autoDiscoveryConfig := &AutoDiscoveryConfig{
 		UUID:  registerResp.Data.UUID,
 		Token: registerResp.Data.Token,
 	}
 
-	if err := saveAutoDiscoveryConfig(config); err != nil {
+	if err := saveAutoDiscoveryConfig(autoDiscoveryConfig); err != nil {
 		return fmt.Errorf("failed to save auto-discovery config: %v", err)
 	}
 
@@ -179,16 +179,16 @@ func registerWithAutoDiscovery() error {
 // HandleAutoDiscovery 处理自动发现逻辑
 func HandleAutoDiscovery() error {
 	// 尝试加载现有配置
-	config, err := loadAutoDiscoveryConfig()
+	autoDiscoveryConfig, err := loadAutoDiscoveryConfig()
 	if err != nil {
 		log.Printf("Failed to load auto-discovery config: %v", err)
 		// 继续尝试注册
 	}
 
-	if config != nil {
+	if autoDiscoveryConfig != nil {
 		// 配置文件存在，使用现有token
-		flags.Token = config.Token
-		log.Printf("Using existing auto-discovery token for UUID: %s", config.UUID)
+		flags.Token = autoDiscoveryConfig.Token
+		log.Printf("Using existing auto-discovery token for UUID: %s", autoDiscoveryConfig.UUID)
 		return nil
 	}
 
