@@ -46,13 +46,6 @@ func getNvidiaDetailedStat() ([]float64, error) {
 	return data, nil
 }
 
-func getAMDDetailedStat() ([]float64, error) {
-	if data, err := getAMDROCmDetailedStat(); err == nil && len(data) > 0 {
-		return data, nil
-	}
-	return getAMDSysfsDetailedStat()
-}
-
 func getNvidiaDetailedHost() ([]string, error) {
 	smi := &NvidiaSMI{
 		BinPath: "/usr/bin/nvidia-smi",
@@ -94,27 +87,6 @@ func GetDetailedGPUHost() ([]string, error) {
 	}
 
 	return gi, nil
-}
-
-// GetDetailedGPUState 获取GPU使用率
-func GetDetailedGPUState() ([]float64, error) {
-	var gs []float64
-	var err error
-
-	switch vendorType {
-	case vendorAMD:
-		gs, err = getAMDDetailedStat()
-	case vendorNVIDIA:
-		gs, err = getNvidiaDetailedStat()
-	default:
-		return nil, errors.New("invalid vendor")
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	return gs, nil
 }
 
 // GetDetailedGPUInfo 获取详细GPU信息
@@ -172,16 +144,6 @@ func getAMDDetailedInfo() ([]DetailedGPUInfo, error) {
 		return gpuInfos, nil
 	}
 	return getAMDSysfsDetailedInfo()
-}
-
-func getAMDROCmDetailedStat() ([]float64, error) {
-	rsmi := &ROCmSMI{
-		BinPath: "/opt/rocm/bin/rocm-smi",
-	}
-	if err := rsmi.Start(); err != nil {
-		return nil, err
-	}
-	return rsmi.GatherUsage()
 }
 
 func getAMDROCmDetailedHost() ([]string, error) {

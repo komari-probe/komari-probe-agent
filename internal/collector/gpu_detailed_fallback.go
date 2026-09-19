@@ -20,11 +20,6 @@ func GetDetailedGPUHost() ([]string, error) {
 	return nil, errors.New("detailed GPU monitoring not supported on this platform")
 }
 
-// GetDetailedGPUState 获取GPU使用率 - 回退实现
-func GetDetailedGPUState() ([]float64, error) {
-	return nil, errors.New("detailed GPU monitoring not supported on this platform")
-}
-
 // GetDetailedGPUInfo 获取详细GPU信息 - 回退实现
 func GetDetailedGPUInfo() ([]DetailedGPUInfo, error) {
 	return nil, errors.New("detailed GPU monitoring not supported on this platform")

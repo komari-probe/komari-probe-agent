@@ -24,15 +24,6 @@ func GetDetailedGPUHost() ([]string, error) {
 	return smi.GatherModel()
 }
 
-// GetDetailedGPUState 获取GPU使用率 (Windows: 仅支持 NVIDIA)
-func GetDetailedGPUState() ([]float64, error) {
-	smi := &NvidiaSMI{}
-	if err := smi.Start(); err != nil {
-		return nil, err
-	}
-	return smi.GatherUsage()
-}
-
 // GetDetailedGPUInfo 获取详细GPU信息 (Windows: 仅支持 NVIDIA)
 func GetDetailedGPUInfo() ([]DetailedGPUInfo, error) {
 	smi := &NvidiaSMI{}

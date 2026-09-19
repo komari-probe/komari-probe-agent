@@ -54,18 +54,6 @@ func getAMDSysfsDetailedHost() ([]string, error) {
 	return names, nil
 }
 
-func getAMDSysfsDetailedStat() ([]float64, error) {
-	infos, err := getAMDSysfsDetailedInfo()
-	if err != nil {
-		return nil, err
-	}
-	usage := make([]float64, 0, len(infos))
-	for _, info := range infos {
-		usage = append(usage, info.Utilization)
-	}
-	return usage, nil
-}
-
 type amdSysfsCard struct {
 	name        string
 	memoryTotal uint64
