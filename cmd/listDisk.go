@@ -5,7 +5,7 @@ import (
 	"log"
 	"text/tabwriter"
 
-	monitoring "github.com/komari-probe/komari-probe-agent/internal/monitoring/unit"
+	"github.com/komari-probe/komari-probe-agent/internal/collector"
 	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/spf13/cobra"
 )
@@ -27,7 +27,7 @@ var ListDiskCmd = &cobra.Command{
 			fmt.Fprintf(w, "%s\t%s\n", part.Mountpoint, part.Fstype)
 		}
 		_ = w.Flush()
-		diskList, err := monitoring.DiskList()
+		diskList, err := collector.DiskList()
 		if err != nil {
 			log.Println("Failed to get disk list:", err)
 			return
