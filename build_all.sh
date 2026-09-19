@@ -38,7 +38,7 @@ for GOOS in "${OS_LIST[@]}"; do
     fi
 
     # 构建二进制文件
-    env GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build -trimpath -ldflags="-X github.com/komari-monitor/komari-agent/internal/update.CurrentVersion=${VERSION}" -o "./build/$BINARY_NAME" ./cmd/komari-agent
+    env GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build -trimpath -ldflags="-X github.com/komari-probe/komari-probe-agent/internal/update.CurrentVersion=${VERSION}" -o "./build/$BINARY_NAME" ./cmd/komari-agent
 
     if [ $? -ne 0 ]; then
       echo -e "${RED}Failed to build for $GOOS/$GOARCH${NC}"

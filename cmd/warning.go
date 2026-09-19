@@ -9,7 +9,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/komari-monitor/komari-agent/pkg/idna"
+	"github.com/komari-probe/komari-probe-agent/pkg/idna"
 )
 
 const (

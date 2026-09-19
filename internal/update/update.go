@@ -14,13 +14,13 @@ import (
 	"time"
 
 	"github.com/blang/semver"
-	"github.com/komari-monitor/komari-agent/pkg/dnsresolver"
+	"github.com/komari-probe/komari-probe-agent/pkg/dnsresolver"
 	"github.com/rhysd/go-github-selfupdate/selfupdate"
 )
 
 var (
 	CurrentVersion string = "0.0.1"
-	Repo           string = "komari-monitor/komari-agent"
+	Repo           string = "komari-probe/komari-probe-agent"
 )
 
 const (

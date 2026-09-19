@@ -20,9 +20,9 @@ import (
 	"syscall"
 	"time"
 
-	pkg_flags "github.com/komari-monitor/komari-agent/cmd/flags"
-	"github.com/komari-monitor/komari-agent/pkg/dnsresolver"
-	v2 "github.com/komari-monitor/komari-agent/internal/protocol/v2"
+	pkg_flags "github.com/komari-probe/komari-probe-agent/cmd/flags"
+	"github.com/komari-probe/komari-probe-agent/pkg/dnsresolver"
+	v2 "github.com/komari-probe/komari-probe-agent/internal/protocol/v2"
 )
 
 const (
