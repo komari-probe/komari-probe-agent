@@ -1,4 +1,4 @@
-package flags_pkg
+package config
 
 type Config struct {
 	AutoDiscoveryKey    string  `json:"auto_discovery_key" env:"AGENT_AUTO_DISCOVERY_KEY"`         // 自动发现密钥
