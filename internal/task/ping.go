@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	pkg_flags "github.com/komari-probe/komari-probe-agent/internal/config"
+	"github.com/komari-probe/komari-probe-agent/internal/config"
 	"github.com/komari-probe/komari-probe-agent/internal/protocol/transport"
 	v2 "github.com/komari-probe/komari-probe-agent/internal/protocol/v2"
 	"github.com/komari-probe/komari-probe-agent/pkg/dnsresolver"
@@ -20,7 +20,7 @@ import (
 	ping "github.com/prometheus-community/pro-bing"
 )
 
-var flags = pkg_flags.GlobalConfig
+var flags = config.GlobalConfig
 
 // resolveIP 解析域名到 IP 地址，排除 DNS 查询时间
 func resolveIP(target string) (string, error) {

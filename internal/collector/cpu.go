@@ -6,11 +6,11 @@ import (
 	"runtime"
 	"strings"
 
-	pkg_flags "github.com/komari-probe/komari-probe-agent/internal/config"
+	"github.com/komari-probe/komari-probe-agent/internal/config"
 	"github.com/shirou/gopsutil/v4/cpu"
 )
 
-var flags = pkg_flags.GlobalConfig
+var flags = config.GlobalConfig
 
 type CpuInfo struct {
 	CPUName          string  `json:"cpu_name"`

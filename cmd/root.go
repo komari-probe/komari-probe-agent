@@ -3,15 +3,11 @@ package cmd
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"reflect"
-	"strconv"
-	"strings"
 	"syscall"
 
 	"github.com/komari-probe/komari-probe-agent/internal/collector"
@@ -22,27 +18,20 @@ import (
 	"github.com/komari-probe/komari-probe-agent/pkg/dnsresolver"
 	"github.com/spf13/cobra"
 
-	pkg_flags "github.com/komari-probe/komari-probe-agent/internal/config"
+	"github.com/komari-probe/komari-probe-agent/internal/config"
 )
 
-var flags = pkg_flags.GlobalConfig
+var flags = config.GlobalConfig
 
 var RootCmd = &cobra.Command{
 	Use:   "komari-probe-agent",
 	Short: "Komari Probe Agent - Pure, lightweight, and high-precision server monitoring probe",
 	Long:  `Komari Probe Agent is a secure and unprivileged server monitoring probe.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		loadFromEnv() // 从环境变量加载配置，覆盖解析
-		if flags.ConfigFile != "" {
-			bytes, err := os.ReadFile(flags.ConfigFile)
-			if err != nil {
-				return fmt.Errorf("failed to read config file: %w", err)
-			}
-			err = json.Unmarshal(bytes, flags)
-			if err != nil {
-				return fmt.Errorf("failed to parse config file: %w", err)
-			}
+		if err := loadConfiguration(cmd); err != nil {
+			return err
 		}
+
 		if flags.PreferIPVersion != "" && flags.PreferIPVersion != "4" && flags.PreferIPVersion != "6" {
 			return fmt.Errorf("invalid --prefer-ip-version value %q: expected 4 or 6", flags.PreferIPVersion)
 		}
@@ -77,6 +66,7 @@ var RootCmd = &cobra.Command{
 				return fmt.Errorf("auto-discovery failed: %w", err)
 			}
 		}
+
 		diskList, err := collector.DiskList()
 		if err != nil {
 			log.Println("Failed to get disk list:", err)
@@ -100,14 +90,20 @@ var RootCmd = &cobra.Command{
 	},
 }
 
-func Execute() {
-	for i, arg := range os.Args {
+func handleDeprecatedFlags() {
+	var filtered []string
+	for _, arg := range os.Args {
 		if arg == "-memory-mode-available" || arg == "--memory-mode-available" {
-			//flags.MemoryIncludeCache = true
 			log.Println("WARNING: The --memory-mode-available flag is deprecated in version 1.0.70 and later. Use --memory-include-cache to report memory usage including cache/buffer.")
-			os.Args = append(os.Args[:i], os.Args[i+1:]...)
+			continue
 		}
+		filtered = append(filtered, arg)
 	}
+	os.Args = filtered
+}
+
+func Execute() {
+	handleDeprecatedFlags()
 
 	if err := RootCmd.Execute(); err != nil {
 		log.Println(err)
@@ -115,17 +111,119 @@ func Execute() {
 	}
 }
 
+// loadConfiguration resolves values using the conventional precedence order:
+// built-in defaults < JSON file < AGENT_* environment variables < explicit CLI flags.
+func loadConfiguration(cmd *cobra.Command) error {
+	cliValues := *flags
+	configPath := configFilePath(cmd, cliValues)
+
+	*flags = config.Default()
+	if configPath != "" {
+		if err := config.LoadFile(configPath, flags); err != nil {
+			return fmt.Errorf("load configuration: %w", err)
+		}
+	}
+	if err := config.ApplyEnvironment(flags, os.LookupEnv); err != nil {
+		return fmt.Errorf("load environment configuration: %w", err)
+	}
+
+	applyCLIOverrides(cmd, cliValues)
+	// config_file selects the source to load; a value inside the file must not
+	// redirect loading after the fact.
+	flags.ConfigFile = configPath
+	return nil
+}
+
+func configFilePath(cmd *cobra.Command, cliValues config.Config) string {
+	if flagChanged(cmd, "config") {
+		return cliValues.ConfigFile
+	}
+	if path, ok := os.LookupEnv("AGENT_CONFIG_FILE"); ok {
+		return path
+	}
+	return ""
+}
+
+func applyCLIOverrides(cmd *cobra.Command, cliValues config.Config) {
+	if flagChanged(cmd, "token") {
+		flags.Token = cliValues.Token
+	}
+	if flagChanged(cmd, "endpoint") {
+		flags.Endpoint = cliValues.Endpoint
+	}
+	if flagChanged(cmd, "auto-discovery") {
+		flags.AutoDiscoveryKey = cliValues.AutoDiscoveryKey
+	}
+	if flagChanged(cmd, "interval") {
+		flags.Interval = cliValues.Interval
+	}
+	if flagChanged(cmd, "ignore-unsafe-cert") {
+		flags.IgnoreUnsafeCert = cliValues.IgnoreUnsafeCert
+	}
+	if flagChanged(cmd, "max-retries") {
+		flags.MaxRetries = cliValues.MaxRetries
+	}
+	if flagChanged(cmd, "reconnect-interval") {
+		flags.ReconnectInterval = cliValues.ReconnectInterval
+	}
+	if flagChanged(cmd, "info-report-interval") {
+		flags.InfoReportInterval = cliValues.InfoReportInterval
+	}
+	if flagChanged(cmd, "include-nics") {
+		flags.IncludeNics = cliValues.IncludeNics
+	}
+	if flagChanged(cmd, "exclude-nics") {
+		flags.ExcludeNics = cliValues.ExcludeNics
+	}
+	if flagChanged(cmd, "include-mountpoint") {
+		flags.IncludeMountpoints = cliValues.IncludeMountpoints
+	}
+	if flagChanged(cmd, "month-rotate") {
+		flags.MonthRotate = cliValues.MonthRotate
+	}
+	if flagChanged(cmd, "memory-include-cache") {
+		flags.MemoryIncludeCache = cliValues.MemoryIncludeCache
+	}
+	if flagChanged(cmd, "memory-exclude-bcf") {
+		flags.MemoryReportRawUsed = cliValues.MemoryReportRawUsed
+	}
+	if flagChanged(cmd, "custom-dns") {
+		flags.CustomDNS = cliValues.CustomDNS
+	}
+	if flagChanged(cmd, "gpu") {
+		flags.EnableGPU = cliValues.EnableGPU
+	}
+	if flagChanged(cmd, "custom-ipv4") {
+		flags.CustomIpv4 = cliValues.CustomIpv4
+	}
+	if flagChanged(cmd, "custom-ipv6") {
+		flags.CustomIpv6 = cliValues.CustomIpv6
+	}
+	if flagChanged(cmd, "get-ip-addr-from-nic") {
+		flags.GetIpAddrFromNic = cliValues.GetIpAddrFromNic
+	}
+	if flagChanged(cmd, "disable-compression") {
+		flags.DisableCompression = cliValues.DisableCompression
+	}
+	if flagChanged(cmd, "prefer-ip-version") {
+		flags.PreferIPVersion = cliValues.PreferIPVersion
+	}
+}
+
+func flagChanged(cmd *cobra.Command, name string) bool {
+	return cmd.Flags().Changed(name) || cmd.PersistentFlags().Changed(name)
+}
+
 func init() {
+	defaults := config.Default()
 	RootCmd.PersistentFlags().StringVarP(&flags.Token, "token", "t", "", "API token")
-	//RootCmd.MarkPersistentFlagRequired("token")
 	RootCmd.PersistentFlags().StringVarP(&flags.Endpoint, "endpoint", "e", "", "API endpoint")
-	//RootCmd.MarkPersistentFlagRequired("endpoint")
 	RootCmd.PersistentFlags().StringVar(&flags.AutoDiscoveryKey, "auto-discovery", "", "Auto discovery key for the agent")
-	RootCmd.PersistentFlags().Float64VarP(&flags.Interval, "interval", "i", 3.0, "Interval in seconds")
+	RootCmd.PersistentFlags().Float64VarP(&flags.Interval, "interval", "i", defaults.Interval, "Interval in seconds")
 	RootCmd.PersistentFlags().BoolVarP(&flags.IgnoreUnsafeCert, "ignore-unsafe-cert", "u", false, "Ignore unsafe certificate errors")
-	RootCmd.PersistentFlags().IntVarP(&flags.MaxRetries, "max-retries", "r", 3, "Maximum number of retries")
-	RootCmd.PersistentFlags().IntVarP(&flags.ReconnectInterval, "reconnect-interval", "c", 5, "Reconnect interval in seconds")
-	RootCmd.PersistentFlags().IntVar(&flags.InfoReportInterval, "info-report-interval", 5, "Interval in minutes for reporting basic info")
+	RootCmd.PersistentFlags().IntVarP(&flags.MaxRetries, "max-retries", "r", defaults.MaxRetries, "Maximum number of retries")
+	RootCmd.PersistentFlags().IntVarP(&flags.ReconnectInterval, "reconnect-interval", "c", defaults.ReconnectInterval, "Reconnect interval in seconds")
+	RootCmd.PersistentFlags().IntVar(&flags.InfoReportInterval, "info-report-interval", defaults.InfoReportInterval, "Interval in minutes for reporting basic info")
 	RootCmd.PersistentFlags().StringVar(&flags.IncludeNics, "include-nics", "", "Comma-separated list of network interfaces to include")
 	RootCmd.PersistentFlags().StringVar(&flags.ExcludeNics, "exclude-nics", "", "Comma-separated list of network interfaces to exclude")
 	RootCmd.PersistentFlags().StringVar(&flags.IncludeMountpoints, "include-mountpoint", "", "Semicolon-separated list of mount points to include for disk statistics")
@@ -141,44 +239,4 @@ func init() {
 	RootCmd.PersistentFlags().BoolVar(&flags.DisableCompression, "disable-compression", false, "Disable v2 gzip/permessage-deflate compression")
 	RootCmd.PersistentFlags().StringVar(&flags.PreferIPVersion, "prefer-ip-version", "", "Prefer IP version for dashboard connections: 4 or 6")
 	RootCmd.PersistentFlags().ParseErrorsWhitelist.UnknownFlags = true
-}
-
-func loadFromEnv() {
-	val := reflect.ValueOf(flags).Elem()
-	typ := val.Type()
-
-	for i := 0; i < val.NumField(); i++ {
-		field := val.Field(i)
-		fieldType := typ.Field(i)
-
-		// Get the env tag
-		envTag := fieldType.Tag.Get("env")
-		if envTag == "" {
-			continue
-		}
-
-		// Get the environment variable value
-		envValue := os.Getenv(envTag)
-		if envValue == "" {
-			continue
-		}
-
-		// Set the field based on its type
-		switch field.Kind() {
-		case reflect.String:
-			field.SetString(envValue)
-		case reflect.Bool:
-			if strings.ToLower(envValue) == "true" || envValue == "1" {
-				field.SetBool(true)
-			}
-		case reflect.Int:
-			if intVal, err := strconv.Atoi(envValue); err == nil {
-				field.SetInt(int64(intVal))
-			}
-		case reflect.Float64:
-			if floatVal, err := strconv.ParseFloat(envValue, 64); err == nil {
-				field.SetFloat(floatVal)
-			}
-		}
-	}
 }

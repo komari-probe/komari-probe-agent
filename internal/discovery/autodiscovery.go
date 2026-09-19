@@ -12,12 +12,12 @@ import (
 	"path/filepath"
 	"time"
 
-	pkg_flags "github.com/komari-probe/komari-probe-agent/internal/config"
+	"github.com/komari-probe/komari-probe-agent/internal/config"
 	"github.com/komari-probe/komari-probe-agent/pkg/dnsresolver"
 	"github.com/komari-probe/komari-probe-agent/pkg/idna"
 )
 
-var flags = pkg_flags.GlobalConfig
+var flags = config.GlobalConfig
 
 // AutoDiscoveryConfig 自动发现配置结构体
 type AutoDiscoveryConfig struct {
