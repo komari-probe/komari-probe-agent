@@ -14,10 +14,10 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/komari-probe/komari-probe-agent/internal/collector"
+	"github.com/komari-probe/komari-probe-agent/internal/collector/netstatic"
 	"github.com/komari-probe/komari-probe-agent/internal/discovery"
-	"github.com/komari-probe/komari-probe-agent/internal/monitoring/netstatic"
-	monitoring "github.com/komari-probe/komari-probe-agent/internal/monitoring/unit"
-	"github.com/komari-probe/komari-probe-agent/internal/server"
+	"github.com/komari-probe/komari-probe-agent/internal/reporter"
 	"github.com/komari-probe/komari-probe-agent/internal/update"
 	"github.com/komari-probe/komari-probe-agent/pkg/dnsresolver"
 	"github.com/spf13/cobra"
@@ -57,7 +57,7 @@ var RootCmd = &cobra.Command{
 			os.Exit(0)
 		}()
 
-		monitoring.InitNetstatic()
+		collector.InitNetstatic()
 
 		log.Println("Komari Agent", update.CurrentVersion)
 		log.Println("Github Repo:", update.Repo)
@@ -78,12 +78,12 @@ var RootCmd = &cobra.Command{
 				return fmt.Errorf("auto-discovery failed: %w", err)
 			}
 		}
-		diskList, err := monitoring.DiskList()
+		diskList, err := collector.DiskList()
 		if err != nil {
 			log.Println("Failed to get disk list:", err)
 		}
 		log.Println("Monitoring Mountpoints:", diskList)
-		interfaceList, err := monitoring.InterfaceList()
+		interfaceList, err := collector.InterfaceList()
 		if err != nil {
 			log.Println("Failed to get interface list:", err)
 		}
@@ -101,10 +101,10 @@ var RootCmd = &cobra.Command{
 			}
 			go update.DoUpdateWorks()
 		}
-		go server.DoUploadBasicInfoWorks()
+		go reporter.DoUploadBasicInfoWorks()
 		for {
-			server.UpdateBasicInfo()
-			server.EstablishWebSocketConnection()
+			reporter.UpdateBasicInfo()
+			reporter.EstablishWebSocketConnection()
 		}
 	},
 }

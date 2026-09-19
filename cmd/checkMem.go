@@ -3,7 +3,7 @@ package cmd
 import (
 	"log"
 
-	monitoring "github.com/komari-probe/komari-probe-agent/internal/monitoring/unit"
+	"github.com/komari-probe/komari-probe-agent/internal/collector"
 	"github.com/spf13/cobra"
 )
 
@@ -15,7 +15,7 @@ var CheckMemCmd = &cobra.Command{
 		log.Println("--- Memory Check ---")
 
 		// Print raw /proc/meminfo if on Linux
-		if info, err := monitoring.ReadProcMeminfo(); err == nil {
+		if info, err := collector.ReadProcMeminfo(); err == nil {
 			log.Println("--- /proc/meminfo ---")
 			log.Printf("MemTotal:     %d MiB", info.MemTotal/1024/1024)
 			log.Printf("MemFree:      %d MiB", info.MemFree/1024/1024)
@@ -32,7 +32,7 @@ var CheckMemCmd = &cobra.Command{
 			log.Println("---------------------")
 		}
 
-		printRamInfo := func(info monitoring.RamInfo) {
+		printRamInfo := func(info collector.RamInfo) {
 			log.Printf("[%s] Total: %d bytes (%d MiB), Used: %d bytes (%d MiB)",
 				info.Mode,
 				info.Total, info.Total/(1024*1024),
@@ -40,12 +40,12 @@ var CheckMemCmd = &cobra.Command{
 			)
 		}
 
-		printRamInfo(monitoring.GetMemHtopLike())
-		printRamInfo(monitoring.GetMemGopsutil())
-		printRamInfo(monitoring.CallFree())
+		printRamInfo(collector.GetMemHtopLike())
+		printRamInfo(collector.GetMemGopsutil())
+		printRamInfo(collector.CallFree())
 
 		log.Println("--- Current Configured ---")
-		printRamInfo(monitoring.Ram())
+		printRamInfo(collector.Ram())
 	},
 }
 
