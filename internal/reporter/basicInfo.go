@@ -14,10 +14,10 @@ import (
 	"github.com/komari-probe/komari-probe-agent/internal/version"
 	"github.com/komari-probe/komari-probe-agent/pkg/dnsresolver"
 
-	pkg_flags "github.com/komari-probe/komari-probe-agent/internal/config"
+	"github.com/komari-probe/komari-probe-agent/internal/config"
 )
 
-var flags = pkg_flags.GlobalConfig
+var flags = config.GlobalConfig
 
 func DoUploadBasicInfoWorks() {
 	ticker := time.NewTicker(time.Duration(flags.InfoReportInterval) * time.Minute)

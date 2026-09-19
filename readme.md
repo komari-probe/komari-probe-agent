@@ -35,7 +35,9 @@ export AGENT_TOKEN="your-token"
 }
 ```
 
-配置优先级从低到高为：默认值、命令行参数、环境变量、JSON 配置文件。
+配置优先级从低到高为：默认值、JSON 配置文件、环境变量、显式命令行参数。也就是说，`--token` 等实际传入的 CLI 参数始终可以覆盖部署环境中的配置；未显式传入的 CLI 默认值不会覆盖 JSON 或环境变量。
+
+配置文件路径可通过 `--config` 或 `AGENT_CONFIG_FILE` 指定；同时提供时，`--config` 优先。
 
 常用配置项：
 
@@ -45,6 +47,7 @@ export AGENT_TOKEN="your-token"
 | --- | --- | --- | --- | --- |
 | `endpoint` | `AGENT_ENDPOINT` | `--endpoint`, `-e` | 面板地址 | `0.0.9` |
 | `token` | `AGENT_TOKEN` | `--token`, `-t` | agent token | `0.0.9` |
+| `config_file` | `AGENT_CONFIG_FILE` | `--config` | JSON 配置文件路径；仅用于选择要加载的文件 | `1.1.33` |
 | `interval` | `AGENT_INTERVAL` | `--interval`, `-i` | 数据采集间隔，单位秒 | `0.0.9` |
 | `ignore_unsafe_cert` | `AGENT_IGNORE_UNSAFE_CERT` | `--ignore-unsafe-cert`, `-u` | 忽略不安全证书 | `0.0.9` |
 | `include_nics` | `AGENT_INCLUDE_NICS` | `--include-nics` | 仅统计指定网卡，逗号分隔 | `0.0.22` |
