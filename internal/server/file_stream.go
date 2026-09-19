@@ -15,7 +15,7 @@ import (
 	"time"
 
 	pkg_flags "github.com/komari-monitor/komari-agent/cmd/flags"
-	"github.com/komari-monitor/komari-agent/dnsresolver"
+	"github.com/komari-monitor/komari-agent/pkg/dnsresolver"
 )
 
 const (

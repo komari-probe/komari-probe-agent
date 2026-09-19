@@ -33,11 +33,11 @@ Dockerfile:
 The agent version is embedded with:
 
 ```sh
--ldflags="-X github.com/komari-monitor/komari-agent/update.CurrentVersion=${VERSION}"
+-ldflags="-X github.com/komari-monitor/komari-agent/internal/update.CurrentVersion=${VERSION}"
 ```
 
 Do not remove this without changing the agent update and reporting logic. The
-agent uses `update.CurrentVersion` for update checks and reports it as part of
+agent uses `internal/update.CurrentVersion` for update checks and reports it as part of
 basic info.
 
 Prefer `go-version-file: go.mod` for release-producing workflows so Actions uses
@@ -94,7 +94,7 @@ Snapshot-yymmddhhMM
 ```
 
 The timestamp is UTC. The generated value is embedded into the binaries as
-`update.CurrentVersion`.
+`internal/update.CurrentVersion`.
 
 Binary release job:
 
@@ -172,7 +172,7 @@ for a snapshot.
 Jobs:
 
 - Builds Windows, Linux, macOS, and FreeBSD binaries.
-- Embeds the release tag as `update.CurrentVersion`.
+- Embeds the release tag as `internal/update.CurrentVersion`.
 - Uploads the matching binary to the GitHub release.
 
 ## `release-docker.yml`
@@ -233,7 +233,7 @@ Stable auto-update behavior:
 
 Snapshot auto-update behavior:
 
-- Snapshot builds are identified by the embedded `update.CurrentVersion` prefix
+- Snapshot builds are identified by the embedded `internal/update.CurrentVersion` prefix
   `Snapshot-`.
 - Snapshot agents list GitHub releases and select the newest non-draft
   prerelease whose tag starts with `Snapshot-` and contains the exact platform
@@ -244,7 +244,7 @@ Snapshot auto-update behavior:
 
 The Docker image tag is not used as the binary version source. The Docker tag is
 always `snapshot` by design. Snapshot binary update decisions use the embedded
-binary version `update.CurrentVersion == Snapshot-yymmddhhMM` and GitHub release
+binary version `internal/update.CurrentVersion == Snapshot-yymmddhhMM` and GitHub release
 metadata instead.
 
 Container guidance for future update changes:
@@ -269,5 +269,5 @@ Before changing these workflows, check:
 - Stable Docker publishing does not run for snapshot prereleases and does not
   publish `latest` for snapshots.
 - Binary asset names still match updater, installer, and Dockerfile expectations.
-- `update.CurrentVersion` is still embedded in all release-producing binaries.
+- `internal/update.CurrentVersion` is still embedded in all release-producing binaries.
 - Race protection still prevents stale `main` commits from publishing snapshots.
