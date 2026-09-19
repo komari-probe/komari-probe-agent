@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/komari-probe/komari-probe-agent/internal/collector"
+	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
 	"github.com/komari-probe/komari-probe-agent/internal/protocol/transport"
 	v2 "github.com/komari-probe/komari-probe-agent/internal/protocol/v2"
 	"github.com/komari-probe/komari-probe-agent/internal/version"
-	"github.com/komari-probe/komari-probe-agent/pkg/dnsresolver"
 
 	"github.com/komari-probe/komari-probe-agent/internal/config"
 )
@@ -88,7 +88,7 @@ func tryUploadDataWithProtocol(data map[string]interface{}) error {
 		req.Header.Set("Content-Encoding", "gzip")
 	}
 
-	client := dnsresolver.GetHTTPClientWithPreference(30*time.Second, flags.PreferIPVersion, flags.IgnoreUnsafeCert)
+	client := connectivity.GetHTTPClientWithPreference(30*time.Second, flags.PreferIPVersion, flags.IgnoreUnsafeCert)
 
 	resp, err := client.Do(req)
 	if err != nil {

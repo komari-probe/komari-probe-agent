@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/komari-probe/komari-probe-agent/internal/config"
-	"github.com/komari-probe/komari-probe-agent/pkg/dnsresolver"
+	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
 	"github.com/komari-probe/komari-probe-agent/pkg/idna"
 )
 
@@ -135,7 +135,7 @@ func registerWithAutoDiscovery() error {
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", flags.AutoDiscoveryKey))
 
 	// 发送请求
-	client := dnsresolver.GetHTTPClientWithPreference(30*time.Second, flags.PreferIPVersion, flags.IgnoreUnsafeCert)
+	client := connectivity.GetHTTPClientWithPreference(30*time.Second, flags.PreferIPVersion, flags.IgnoreUnsafeCert)
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send register request: %v", err)

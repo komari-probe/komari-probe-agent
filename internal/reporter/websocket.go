@@ -15,10 +15,10 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
 	"github.com/komari-probe/komari-probe-agent/internal/protocol/transport"
 	v2 "github.com/komari-probe/komari-probe-agent/internal/protocol/v2"
 	"github.com/komari-probe/komari-probe-agent/internal/task"
-	"github.com/komari-probe/komari-probe-agent/pkg/dnsresolver"
 	"github.com/komari-probe/komari-probe-agent/pkg/idna"
 	"github.com/komari-probe/komari-probe-agent/pkg/ws"
 )
@@ -228,7 +228,7 @@ func postV2RequestContext(ctx context.Context, payload []byte) (*v2.Response, er
 	if compressed {
 		req.Header.Set("Content-Encoding", "gzip")
 	}
-	client := dnsresolver.GetHTTPClientWithPreference(35*time.Second, flags.PreferIPVersion, flags.IgnoreUnsafeCert)
+	client := connectivity.GetHTTPClientWithPreference(35*time.Second, flags.PreferIPVersion, flags.IgnoreUnsafeCert)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -397,7 +397,7 @@ func processV2Event(conn *ws.SafeConn, method string, params interface{}, eventI
 func newWSDialer() *websocket.Dialer {
 	d := &websocket.Dialer{
 		HandshakeTimeout:  15 * time.Second,
-		NetDialContext:    dnsresolver.GetDialContextWithPreference(15*time.Second, flags.PreferIPVersion),
+		NetDialContext:    connectivity.GetDialContextWithPreference(15*time.Second, flags.PreferIPVersion),
 		Proxy:             http.ProxyFromEnvironment,
 		EnableCompression: !flags.DisableCompression,
 	}

@@ -14,10 +14,10 @@ import (
 	"github.com/komari-probe/komari-probe-agent/internal/collector"
 	"github.com/komari-probe/komari-probe-agent/internal/collector/netstatic"
 	"github.com/komari-probe/komari-probe-agent/internal/config"
+	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
 	"github.com/komari-probe/komari-probe-agent/internal/discovery"
 	"github.com/komari-probe/komari-probe-agent/internal/reporter"
 	"github.com/komari-probe/komari-probe-agent/internal/version"
-	"github.com/komari-probe/komari-probe-agent/pkg/dnsresolver"
 )
 
 // Run starts the Agent runtime after command-line configuration has been
@@ -40,7 +40,7 @@ func Run(cfg *config.Config) error {
 	log.Println("Komari Agent", version.CurrentVersion)
 
 	if cfg.CustomDNS != "" {
-		dnsresolver.SetCustomDNSServer(cfg.CustomDNS)
+		connectivity.SetCustomDNSServer(cfg.CustomDNS)
 		log.Printf("Using custom DNS server: %s", cfg.CustomDNS)
 	} else {
 		log.Printf("Using system default DNS resolver")
