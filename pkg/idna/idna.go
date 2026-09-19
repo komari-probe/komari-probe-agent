@@ -1,11 +1,11 @@
-package utils
+package idna
 
 import (
 	"net"
 	"net/url"
 	"strings"
 
-	"golang.org/x/net/idna"
+	xidna "golang.org/x/net/idna"
 )
 
 // ConvertIDNToASCII 将包含国际化域名(IDN)的 URL 转换为 ASCII 兼容编码(ACE)格式
@@ -25,7 +25,7 @@ func ConvertIDNToASCII(urlStr string) (string, error) {
 	}
 
 	// 转换主机名为 Punycode
-	asciiHost, err := idna.ToASCII(hostname)
+	asciiHost, err := xidna.ToASCII(hostname)
 	if err != nil {
 		return urlStr, err
 	}
@@ -76,7 +76,7 @@ func ConvertHostToASCII(host string) (string, error) {
 	}
 
 	// 转换为 ASCII
-	asciiHost, err := idna.ToASCII(hostname)
+	asciiHost, err := xidna.ToASCII(hostname)
 	if err != nil {
 		return host, err
 	}

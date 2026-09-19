@@ -9,7 +9,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/komari-monitor/komari-agent/pkg/utils"
+	"github.com/komari-monitor/komari-agent/pkg/idna"
 )
 
 const (
@@ -42,7 +42,7 @@ func warningHost(endpoint string) string {
 	if !strings.Contains(endpoint, "://") && !strings.HasPrefix(endpoint, "//") {
 		endpoint = "//" + endpoint
 	}
-	endpoint, err := utils.ConvertIDNToASCII(endpoint)
+	endpoint, err := idna.ConvertIDNToASCII(endpoint)
 	if err != nil {
 		return unknownHost
 	}
