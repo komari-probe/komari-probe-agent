@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/komari-probe/komari-probe-agent/internal/collector"
-	v2 "github.com/komari-probe/komari-probe-agent/internal/protocol/v2"
 	"github.com/komari-probe/komari-probe-agent/internal/version"
 
 	"github.com/komari-probe/komari-probe-agent/internal/config"
@@ -38,7 +37,7 @@ func uploadBasicInfo() error {
 	kernelVersion := collector.KernelVersion()
 	ipv4, ipv6, _ := collector.GetIPAddress()
 
-	data := map[string]interface{}{
+	data := map[string]any{
 		"cpu_name":           cpu.CPUName,
 		"cpu_cores":          cpu.CPUCores,
 		"cpu_physical_cores": cpu.CPUPhysicalCores,
@@ -55,5 +54,5 @@ func uploadBasicInfo() error {
 		"version":            version.CurrentVersion,
 	}
 
-	return postAndValidateRPC(context.Background(), v2.BuildBasicInfoPayload(data), 30*time.Second)
+	return postAndValidateRPC(context.Background(), buildBasicInfoPayload(data), 30*time.Second)
 }

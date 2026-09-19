@@ -2,8 +2,10 @@ package reporter
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -11,13 +13,32 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
-	"github.com/komari-probe/komari-probe-agent/internal/protocol/transport"
-	v2 "github.com/komari-probe/komari-probe-agent/internal/protocol/v2"
+	v2 "github.com/komari-probe/komari-probe-agent/internal/rpc/v2"
 )
+
+// HTTPStatusError describes an unsuccessful HTTP fallback response.
+type HTTPStatusError struct {
+	StatusCode int
+	Status     string
+	Body       string
+}
+
+func (e *HTTPStatusError) Error() string {
+	if e == nil {
+		return ""
+	}
+	if e.Body != "" {
+		return fmt.Sprintf("status code: %d,%s", e.StatusCode, e.Body)
+	}
+	if e.Status != "" {
+		return e.Status
+	}
+	return fmt.Sprintf("status code: %d", e.StatusCode)
+}
 
 // sendRPC serializes a v2 RPC value and delivers it over the active WebSocket
 // connection, falling back to HTTP when no connection is available.
-func sendRPC(conn *connectivity.SafeConn, payload interface{}) error {
+func sendRPC(conn *connectivity.SafeConn, payload any) error {
 	encoded, err := json.Marshal(payload)
 	if err != nil {
 		return err
@@ -52,7 +73,7 @@ func postRPCPayload(ctx context.Context, payload []byte, timeout time.Duration) 
 	body := payload
 	compressed := false
 	if !flags.DisableCompression {
-		if gz, err := transport.GzipBytes(payload); err == nil {
+		if gz, err := gzipPayload(payload); err == nil {
 			body = gz
 			compressed = true
 		}
@@ -78,7 +99,20 @@ func postRPCPayload(ctx context.Context, payload []byte, timeout time.Duration) 
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, &v2.HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status, Body: string(response)}
+		return nil, &HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status, Body: string(response)}
 	}
 	return response, nil
+}
+
+func gzipPayload(payload []byte) ([]byte, error) {
+	var buffer bytes.Buffer
+	writer := gzip.NewWriter(&buffer)
+	if _, err := writer.Write(payload); err != nil {
+		_ = writer.Close()
+		return nil, err
+	}
+	if err := writer.Close(); err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
 }
