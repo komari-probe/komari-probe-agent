@@ -8,7 +8,6 @@ The important design split is:
 - Stable releases use normal GitHub releases and semver tags.
 - Snapshot builds use GitHub prereleases named `Snapshot-yymmddhhMM`.
 - The Docker snapshot image intentionally uses the mutable tag `snapshot`.
-- Stable auto-update must not consume snapshot prereleases.
 
 ## Workflow Summary
 
@@ -22,8 +21,7 @@ The important design split is:
 
 ## Common Build Conventions
 
-Binary names must remain compatible with the updater, installer scripts, and
-Dockerfile:
+Binary names must remain compatible with the installer scripts and Dockerfile:
 
 - Release and snapshot assets are named `komari-agent-${GOOS}-${GOARCH}`.
 - Windows assets append `.exe`.
@@ -33,12 +31,12 @@ Dockerfile:
 The agent version is embedded with:
 
 ```sh
--ldflags="-X github.com/komari-probe/komari-probe-agent/internal/update.CurrentVersion=${VERSION}"
+-ldflags="-X github.com/komari-probe/komari-probe-agent/internal/version.CurrentVersion=${VERSION}"
 ```
 
-Do not remove this without changing the agent update and reporting logic. The
-agent uses `internal/update.CurrentVersion` for update checks and reports it as part of
-basic info.
+Do not remove this without changing the reporting logic. The agent uses
+`internal/version.CurrentVersion` purely to report its running version as
+part of basic info; the agent does not self-update.
 
 Prefer `go-version-file: go.mod` for release-producing workflows so Actions uses
 the Go version declared by the project.
@@ -94,7 +92,7 @@ Snapshot-yymmddhhMM
 ```
 
 The timestamp is UTC. The generated value is embedded into the binaries as
-`internal/update.CurrentVersion`.
+`internal/version.CurrentVersion`.
 
 Binary release job:
 
@@ -135,21 +133,18 @@ move to the next snapshot. If timestamp image tags are added later, keep
 
 ### Snapshot Docker Updates
 
-Container-based updates and binary self-updates are different mechanisms:
+The agent does not self-update; container images are updated at the image
+level only:
 
 - Watchtower-style tools update containers by comparing the image behind the
-  configured tag. They should work with the mutable `:snapshot` tag because each
-  new snapshot push changes the image digest.
-- The agent's own self-update logic updates the binary inside the running
-  container filesystem. That does not update the Docker image. If the container
-  is recreated, the image contents win again.
-- The Dockerfile creates `/.komari-agent-container`. Snapshot-aware auto-update
-  uses that marker to skip binary self-update in containers and leave updates to
-  image refresh tooling.
+  configured tag. They work with the mutable `:snapshot` tag because each new
+  snapshot push changes the image digest.
+- Recreating the container from a newer image is the only way to move a
+  containerized agent to a new version.
 
 For Docker prerelease users, prefer `:snapshot` plus a container image updater.
-For non-container prerelease users, snapshot-aware binary self-update follows
-the latest `Snapshot-*` GitHub prerelease.
+For non-container prerelease users, reinstall from the latest `Snapshot-*`
+GitHub prerelease.
 
 ## `release.yml`
 
@@ -172,7 +167,7 @@ for a snapshot.
 Jobs:
 
 - Builds Windows, Linux, macOS, and FreeBSD binaries.
-- Embeds the release tag as `internal/update.CurrentVersion`.
+- Embeds the release tag as `internal/version.CurrentVersion`.
 - Uploads the matching binary to the GitHub release.
 
 ## `release-docker.yml`
@@ -221,42 +216,6 @@ if: ${{ github.event_name == 'workflow_dispatch' || !github.event.release.prerel
 Snapshot prereleases intentionally keep their simple automated snapshot notes and
 do not trigger normal stable-release note generation.
 
-## Auto-Update Interaction
-
-Stable auto-update behavior:
-
-- The agent calls `update.CheckAndUpdate()` when auto-update is enabled.
-- `CheckAndUpdate()` uses `github.com/rhysd/go-github-selfupdate/selfupdate`.
-- That library's normal latest-release detection skips GitHub prereleases.
-- Therefore stable agents with auto-update enabled should not update to
-  `Snapshot-*` prereleases.
-
-Snapshot auto-update behavior:
-
-- Snapshot builds are identified by the embedded `internal/update.CurrentVersion` prefix
-  `Snapshot-`.
-- Snapshot agents list GitHub releases and select the newest non-draft
-  prerelease whose tag starts with `Snapshot-` and contains the exact platform
-  asset name.
-- Snapshot agents update only to another snapshot prerelease.
-- Snapshot agents running in Docker skip binary self-update when
-  `/.komari-agent-container` exists.
-
-The Docker image tag is not used as the binary version source. The Docker tag is
-always `snapshot` by design. Snapshot binary update decisions use the embedded
-binary version `internal/update.CurrentVersion == Snapshot-yymmddhhMM` and GitHub release
-metadata instead.
-
-Container guidance for future update changes:
-
-- A binary running in Docker can potentially replace `/app/komari-agent`, but
-  that only changes the container's writable layer.
-- After self-update, the current code exits with status `42`; the container needs
-  a restart policy or external supervisor to come back.
-- Recreating the container from the image discards any in-container binary
-  replacement.
-- Prefer image-level updates for Docker deployments.
-
 ## Change Checklist
 
 Before changing these workflows, check:
@@ -268,6 +227,6 @@ Before changing these workflows, check:
 - Docker snapshot publishing still keeps the mutable `snapshot` tag.
 - Stable Docker publishing does not run for snapshot prereleases and does not
   publish `latest` for snapshots.
-- Binary asset names still match updater, installer, and Dockerfile expectations.
-- `internal/update.CurrentVersion` is still embedded in all release-producing binaries.
+- Binary asset names still match the installer and Dockerfile expectations.
+- `internal/version.CurrentVersion` is still embedded in all release-producing binaries.
 - Race protection still prevents stale `main` commits from publishing snapshots.

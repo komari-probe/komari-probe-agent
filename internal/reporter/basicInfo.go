@@ -11,7 +11,7 @@ import (
 	"github.com/komari-probe/komari-probe-agent/internal/collector"
 	"github.com/komari-probe/komari-probe-agent/internal/protocol/transport"
 	v2 "github.com/komari-probe/komari-probe-agent/internal/protocol/v2"
-	"github.com/komari-probe/komari-probe-agent/internal/update"
+	"github.com/komari-probe/komari-probe-agent/internal/version"
 	"github.com/komari-probe/komari-probe-agent/pkg/dnsresolver"
 
 	pkg_flags "github.com/komari-probe/komari-probe-agent/internal/config"
@@ -57,7 +57,7 @@ func uploadBasicInfo() error {
 		"disk_total":         collector.Disk().Total,
 		"gpu_name":           collector.GpuName(),
 		"virtualization":     collector.Virtualized(),
-		"version":            update.CurrentVersion,
+		"version":            version.CurrentVersion,
 	}
 
 	return tryUploadData(data)
