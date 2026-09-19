@@ -1,7 +1,7 @@
 //go:build linux
 // +build linux
 
-package collector
+package gpu
 
 import (
 	"bytes"
@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-func GpuName() string {
+func Name() string {
 	if name := getFromLspci(); name != "None" {
 		return name
 	}
@@ -93,7 +93,7 @@ func getFromLspci() string {
 	}
 
 	if len(result) > 0 {
-		return formatGPUNameList(result)
+		return formatNameList(result)
 	}
 
 	// 任意非黑名单的 VGA 设备
@@ -106,7 +106,7 @@ func getFromLspci() string {
 	}
 
 	if len(result) > 0 {
-		return formatGPUNameList(result)
+		return formatNameList(result)
 	}
 
 	return "None"
@@ -200,7 +200,7 @@ func getFromSysfsDRM() string {
 	}
 
 	if len(result) > 0 {
-		return formatGPUNameList(result)
+		return formatNameList(result)
 	}
 
 	// 开发板 Model

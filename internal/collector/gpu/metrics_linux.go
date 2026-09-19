@@ -1,28 +1,15 @@
 //go:build linux
 
-package collector
+package gpu
 
-import (
-	"errors"
-)
+import "errors"
 
 const (
 	vendorAMD = iota + 1
 	vendorNVIDIA
 )
 
-var vendorType = getDetailedVendor()
-
-// DetailedGPUInfo 详细GPU信息结构体
-type DetailedGPUInfo struct {
-	Name        string  `json:"name"`         // GPU型号
-	MemoryTotal uint64  `json:"memory_total"` // 总显存 (字节)
-	MemoryUsed  uint64  `json:"memory_used"`  // 已用显存 (字节)
-	Utilization float64 `json:"utilization"`  // GPU使用率 (0-100)
-	Temperature uint64  `json:"temperature"`  // 温度 (摄氏度)
-}
-
-func getDetailedVendor() uint8 {
+func detectVendor() uint8 {
 	_, err := getNvidiaDetailedStat()
 	if err != nil {
 		return vendorAMD
@@ -32,14 +19,14 @@ func getDetailedVendor() uint8 {
 }
 
 func getNvidiaDetailedStat() ([]float64, error) {
-	smi := &NvidiaSMI{
+	smi := &nvidiaSMI{
 		BinPath: "/usr/bin/nvidia-smi",
 	}
-	err1 := smi.Start()
+	err1 := smi.start()
 	if err1 != nil {
 		return nil, err1
 	}
-	data, err2 := smi.GatherUsage()
+	data, err2 := smi.usage()
 	if err2 != nil {
 		return nil, err2
 	}
@@ -47,14 +34,14 @@ func getNvidiaDetailedStat() ([]float64, error) {
 }
 
 func getNvidiaDetailedHost() ([]string, error) {
-	smi := &NvidiaSMI{
+	smi := &nvidiaSMI{
 		BinPath: "/usr/bin/nvidia-smi",
 	}
-	err := smi.Start()
+	err := smi.start()
 	if err != nil {
 		return nil, err
 	}
-	data, err := smi.GatherModel()
+	data, err := smi.modelNames()
 	if err != nil {
 		return nil, err
 	}
@@ -68,12 +55,12 @@ func getAMDDetailedHost() ([]string, error) {
 	return getAMDSysfsDetailedHost()
 }
 
-// GetDetailedGPUHost 获取GPU型号信息
-func GetDetailedGPUHost() ([]string, error) {
+// ModelNames 获取GPU型号信息
+func ModelNames() ([]string, error) {
 	var gi []string
 	var err error
 
-	switch vendorType {
+	switch detectVendor() {
 	case vendorAMD:
 		gi, err = getAMDDetailedHost()
 	case vendorNVIDIA:
@@ -89,12 +76,12 @@ func GetDetailedGPUHost() ([]string, error) {
 	return gi, nil
 }
 
-// GetDetailedGPUInfo 获取详细GPU信息
-func GetDetailedGPUInfo() ([]DetailedGPUInfo, error) {
-	var gpuInfos []DetailedGPUInfo
+// Devices returns metrics for every detected GPU device.
+func Devices() ([]Device, error) {
+	var gpuInfos []Device
 	var err error
 
-	switch vendorType {
+	switch detectVendor() {
 	case vendorAMD:
 		gpuInfos, err = getAMDDetailedInfo()
 	case vendorNVIDIA:
@@ -110,23 +97,23 @@ func GetDetailedGPUInfo() ([]DetailedGPUInfo, error) {
 	return gpuInfos, nil
 }
 
-func getNvidiaDetailedInfo() ([]DetailedGPUInfo, error) {
-	smi := &NvidiaSMI{
+func getNvidiaDetailedInfo() ([]Device, error) {
+	smi := &nvidiaSMI{
 		BinPath: "/usr/bin/nvidia-smi",
 	}
-	err := smi.Start()
+	err := smi.start()
 	if err != nil {
 		return nil, err
 	}
 
-	data, err := smi.GatherDetailedInfo()
+	data, err := smi.devices()
 	if err != nil {
 		return nil, err
 	}
 
-	var gpuInfos []DetailedGPUInfo
+	var gpuInfos []Device
 	for _, nvidiaInfo := range data {
-		gpuInfo := DetailedGPUInfo{
+		gpuInfo := Device{
 			Name:        nvidiaInfo.Name,
 			MemoryTotal: nvidiaInfo.MemoryTotal,
 			MemoryUsed:  nvidiaInfo.MemoryUsed,
@@ -139,7 +126,7 @@ func getNvidiaDetailedInfo() ([]DetailedGPUInfo, error) {
 	return gpuInfos, nil
 }
 
-func getAMDDetailedInfo() ([]DetailedGPUInfo, error) {
+func getAMDDetailedInfo() ([]Device, error) {
 	if gpuInfos, err := getAMDROCmDetailedInfo(); err == nil && len(gpuInfos) > 0 {
 		return gpuInfos, nil
 	}
@@ -147,31 +134,31 @@ func getAMDDetailedInfo() ([]DetailedGPUInfo, error) {
 }
 
 func getAMDROCmDetailedHost() ([]string, error) {
-	rsmi := &ROCmSMI{
+	rsmi := &rocmSMI{
 		BinPath: "/opt/rocm/bin/rocm-smi",
 	}
-	if err := rsmi.Start(); err != nil {
+	if err := rsmi.start(); err != nil {
 		return nil, err
 	}
-	return rsmi.GatherModel()
+	return rsmi.modelNames()
 }
 
-func getAMDROCmDetailedInfo() ([]DetailedGPUInfo, error) {
-	rsmi := &ROCmSMI{
+func getAMDROCmDetailedInfo() ([]Device, error) {
+	rsmi := &rocmSMI{
 		BinPath: "/opt/rocm/bin/rocm-smi",
 	}
-	if err := rsmi.Start(); err != nil {
+	if err := rsmi.start(); err != nil {
 		return nil, err
 	}
 
-	data, err := rsmi.GatherDetailedInfo()
+	data, err := rsmi.devices()
 	if err != nil {
 		return nil, err
 	}
 
-	var gpuInfos []DetailedGPUInfo
+	var gpuInfos []Device
 	for _, amdInfo := range data {
-		gpuInfos = append(gpuInfos, DetailedGPUInfo{
+		gpuInfos = append(gpuInfos, Device{
 			Name:        amdInfo.Name,
 			MemoryTotal: amdInfo.MemoryTotal,
 			MemoryUsed:  amdInfo.MemoryUsed,

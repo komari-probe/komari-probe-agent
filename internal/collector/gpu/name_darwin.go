@@ -1,15 +1,15 @@
 //go:build darwin
 // +build darwin
 
-package collector
+package gpu
 
 import (
 	"os/exec"
 	"strings"
 )
 
-// GpuName returns the name of the GPU on Darwin (macOS)
-func GpuName() string {
+// Name returns the name of the GPU on Darwin (macOS)
+func Name() string {
 	cmd := exec.Command("system_profiler", "SPDisplaysDataType")
 	output, err := cmd.Output()
 	if err != nil {
@@ -25,5 +25,5 @@ func GpuName() string {
 		}
 	}
 
-	return formatGPUNameList(names)
+	return formatNameList(names)
 }

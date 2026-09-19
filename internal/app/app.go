@@ -55,7 +55,6 @@ func Run(cfg config.Config) error {
 		CustomIPv6:          cfg.CustomIpv6,
 		GetIPAddrFromNIC:    cfg.GetIpAddrFromNic,
 		HostProc:            cfg.HostProc,
-		EnableGPU:           cfg.EnableGPU,
 	})
 	agentReporter := reporter.New(reporter.Options{
 		Endpoint:           cfg.Endpoint,

@@ -1,7 +1,7 @@
 //go:build windows
 // +build windows
 
-package collector
+package gpu
 
 import (
 	"fmt"
@@ -10,8 +10,8 @@ import (
 	"unsafe"
 )
 
-// GPUInfo 存储获取到的 DXGI 图形适配器详细信息。
-type GPUInfo struct {
+// adapter 存储获取到的 DXGI 图形适配器详细信息。
+type adapter struct {
 	Index                 int    // DXGI 适配器的顺序索引
 	Name                  string // 适配器名称
 	VendorId              uint32 // 厂商 ID，如 0x10DE NVIDIA, 0x1002 AMD, 0x8086 Intel
@@ -26,19 +26,19 @@ type GPUInfo struct {
 	Flags                 uint32 // 适配器标志特征位
 }
 
-func (g *GPUInfo) DedicatedVideoMemoryMB() uint64 {
+func (g *adapter) DedicatedVideoMemoryMB() uint64 {
 	return g.DedicatedVideoMemory / (1024 * 1024)
 }
 
-func (g *GPUInfo) DedicatedSystemMemoryMB() uint64 {
+func (g *adapter) DedicatedSystemMemoryMB() uint64 {
 	return g.DedicatedSystemMemory / (1024 * 1024)
 }
 
-func (g *GPUInfo) SharedSystemMemoryMB() uint64 {
+func (g *adapter) SharedSystemMemoryMB() uint64 {
 	return g.SharedSystemMemory / (1024 * 1024)
 }
 
-func (g *GPUInfo) LUIDString() string {
+func (g *adapter) LUIDString() string {
 	return fmt.Sprintf("0x%08X%08X", uint32(g.LUIDHighPart), g.LUIDLowPart)
 }
 
@@ -182,8 +182,8 @@ func (a *idxgiAdapter1) Release() uint32 {
 	return uint32(ret)
 }
 
-// GetGPUs 枚举并获取系统中所有 DXGI 图形适配器信息。
-func GetGPUs() ([]GPUInfo, error) {
+// adapters 枚举并获取系统中所有 DXGI 图形适配器信息。
+func adapters() ([]adapter, error) {
 	dxgiDLL, err := syscall.LoadDLL("dxgi.dll")
 	if err != nil {
 		return nil, fmt.Errorf("load dxgi.dll failed: %w", err)
@@ -214,19 +214,19 @@ func GetGPUs() ([]GPUInfo, error) {
 	}
 	defer factory.Release()
 
-	var gpus []GPUInfo
+	var gpus []adapter
 
 	for adapterIndex := uint32(0); ; adapterIndex++ {
-		var adapter *idxgiAdapter1
+		var currentAdapter *idxgiAdapter1
 
-		hr := factory.EnumAdapters1(adapterIndex, &adapter)
+		hr := factory.EnumAdapters1(adapterIndex, &currentAdapter)
 		if hr == dxgiErrorNotFound {
 			break
 		}
 
 		if hr != sOK {
-			if adapter != nil {
-				adapter.Release()
+			if currentAdapter != nil {
+				currentAdapter.Release()
 			}
 			return gpus, fmt.Errorf(
 				"EnumAdapters1 failed at index %d with HRESULT: 0x%08X",
@@ -235,7 +235,7 @@ func GetGPUs() ([]GPUInfo, error) {
 			)
 		}
 
-		if adapter == nil {
+		if currentAdapter == nil {
 			return gpus, fmt.Errorf(
 				"EnumAdapters1 succeeded but returned nil adapter at index %d",
 				adapterIndex,
@@ -243,9 +243,9 @@ func GetGPUs() ([]GPUInfo, error) {
 		}
 
 		var desc dxgiAdapterDesc1
-		hr = adapter.GetDesc1(&desc)
+		hr = currentAdapter.GetDesc1(&desc)
 
-		adapter.Release()
+		currentAdapter.Release()
 
 		if hr != sOK {
 			return gpus, fmt.Errorf(
@@ -255,7 +255,7 @@ func GetGPUs() ([]GPUInfo, error) {
 			)
 		}
 
-		info := GPUInfo{
+		info := adapter{
 			Index:                 int(adapterIndex),
 			Name:                  desc.DescriptionString(),
 			VendorId:              desc.VendorId,
@@ -276,17 +276,17 @@ func GetGPUs() ([]GPUInfo, error) {
 	return gpus, nil
 }
 
-func GpuName() string {
-	gpus, err := GetGPUs()
+func Name() string {
+	gpus, err := adapters()
 	if err != nil {
 		return "Unknown"
 	}
 
-	type GPUKey struct {
+	type adapterKey struct {
 		LUIDHighPart int32
 		LUIDLowPart  uint32
 	}
-	seenGPUs := make(map[GPUKey]struct{})
+	seenGPUs := make(map[adapterKey]struct{})
 	var names []string
 
 	for _, gpu := range gpus {
@@ -294,7 +294,7 @@ func GpuName() string {
 			continue
 		}
 
-		key := GPUKey{
+		key := adapterKey{
 			LUIDHighPart: gpu.LUIDHighPart,
 			LUIDLowPart:  gpu.LUIDLowPart,
 		}
@@ -307,5 +307,5 @@ func GpuName() string {
 			}
 		}
 	}
-	return formatGPUNameList(names)
+	return formatNameList(names)
 }

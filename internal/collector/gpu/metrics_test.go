@@ -1,11 +1,11 @@
-package collector
+package gpu
 
 import (
 	"testing"
 )
 
 func TestDetailedGPUDetection(t *testing.T) {
-	models, err := GetDetailedGPUHost()
+	models, err := ModelNames()
 	if err != nil {
 		t.Logf("Detailed GPU detection failed (may be normal on non-Linux or non-GPU systems): %v", err)
 		return
@@ -15,7 +15,7 @@ func TestDetailedGPUDetection(t *testing.T) {
 
 	if len(models) > 0 {
 		// 测试详细信息获取
-		detailedInfo, err := GetDetailedGPUInfo()
+		detailedInfo, err := Devices()
 		if err != nil {
 			t.Logf("GPU detailed info collection failed: %v", err)
 		} else {
@@ -27,8 +27,8 @@ func TestDetailedGPUDetection(t *testing.T) {
 	}
 }
 
-func TestDetailedGPUInfo(t *testing.T) {
-	detailedInfo, err := GetDetailedGPUInfo()
+func TestDevice(t *testing.T) {
+	detailedInfo, err := Devices()
 	if err != nil {
 		t.Logf("GPU detailed info test failed (may be normal): %v", err)
 		return
