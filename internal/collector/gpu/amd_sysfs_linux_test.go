@@ -1,6 +1,6 @@
 //go:build linux
 
-package collector
+package gpu
 
 import "testing"
 

@@ -13,7 +13,6 @@ type Options struct {
 	CustomIPv6          string
 	GetIPAddrFromNIC    bool
 	HostProc            string
-	EnableGPU           bool
 }
 
 // Collector gathers host metrics using the supplied runtime options.

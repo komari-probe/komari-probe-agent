@@ -1,4 +1,4 @@
-package collector
+package gpu
 
 // Modified from https://github.com/influxdata/telegraf/blob/master/plugins/inputs/amd_rocm_smi/amd_rocm_smi.go
 // Original License: MIT
@@ -12,13 +12,13 @@ import (
 	"strings"
 )
 
-type ROCmSMI struct {
+type rocmSMI struct {
 	BinPath string
 	data    []byte
 }
 
-// AMDGPUInfo AMD GPU详细信息
-type AMDGPUInfo struct {
+// amdDevice AMD GPU详细信息
+type amdDevice struct {
 	Name        string  // GPU型号
 	MemoryTotal uint64  // 总显存 (字节)
 	MemoryUsed  uint64  // 已用显存 (字节)
@@ -26,27 +26,16 @@ type AMDGPUInfo struct {
 	Temperature uint64  // 温度 (摄氏度)
 }
 
-// ROCmSMI JSON响应结构
-type ROCmResponse map[string]ROCmGPUInfo
-
-type ROCmGPUInfo struct {
-	CardSeries          string `json:"Card series"`
-	GPUUsage            string `json:"GPU use (%)"`
-	VRAMTotalMemory     string `json:"VRAM Total Memory (B)"`
-	VRAMTotalUsedMemory string `json:"VRAM Total Used Memory (B)"`
-	TemperatureJunction string `json:"Temperature (Sensor junction) (C)"`
-}
-
-func (rsmi *ROCmSMI) GatherModel() ([]string, error) {
+func (rsmi *rocmSMI) modelNames() ([]string, error) {
 	return rsmi.gatherModel()
 }
 
-// GatherDetailedInfo 获取详细GPU信息
-func (rsmi *ROCmSMI) GatherDetailedInfo() ([]AMDGPUInfo, error) {
+// devices 获取详细GPU信息
+func (rsmi *rocmSMI) devices() ([]amdDevice, error) {
 	return rsmi.gatherDetailedInfo()
 }
 
-func (rsmi *ROCmSMI) Start() error {
+func (rsmi *rocmSMI) start() error {
 	if _, err := os.Stat(rsmi.BinPath); os.IsNotExist(err) {
 		binPath, err := exec.LookPath("rocm-smi")
 		if err != nil {
@@ -55,11 +44,11 @@ func (rsmi *ROCmSMI) Start() error {
 		rsmi.BinPath = binPath
 	}
 
-	rsmi.data = rsmi.pollROCmSMI()
+	rsmi.data = rsmi.pollrocmSMI()
 	return nil
 }
 
-func (rsmi *ROCmSMI) pollROCmSMI() []byte {
+func (rsmi *rocmSMI) pollrocmSMI() []byte {
 	cmd := exec.Command(rsmi.BinPath, "--showallinfo", "--json")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -68,7 +57,7 @@ func (rsmi *ROCmSMI) pollROCmSMI() []byte {
 	return output
 }
 
-func (rsmi *ROCmSMI) gatherModel() ([]string, error) {
+func (rsmi *rocmSMI) gatherModel() ([]string, error) {
 	var data map[string]any
 	var models []string
 
@@ -92,13 +81,13 @@ func (rsmi *ROCmSMI) gatherModel() ([]string, error) {
 	return models, nil
 }
 
-func (rsmi *ROCmSMI) gatherDetailedInfo() ([]AMDGPUInfo, error) {
+func (rsmi *rocmSMI) gatherDetailedInfo() ([]amdDevice, error) {
 	if rsmi.data == nil {
 		return nil, errors.New("no data available")
 	}
 
 	var data map[string]any
-	var gpuInfos []AMDGPUInfo
+	var gpuInfos []amdDevice
 
 	if err := json.Unmarshal(rsmi.data, &data); err != nil {
 		return nil, err
@@ -108,7 +97,7 @@ func (rsmi *ROCmSMI) gatherDetailedInfo() ([]AMDGPUInfo, error) {
 	for key, value := range data {
 		if strings.HasPrefix(key, "card") {
 			if cardData, ok := value.(map[string]any); ok {
-				gpuInfo := AMDGPUInfo{}
+				gpuInfo := amdDevice{}
 
 				// 获取GPU名称
 				if name, exists := cardData["Card series"]; exists {

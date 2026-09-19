@@ -1,4 +1,4 @@
-package collector
+package gpu
 
 // Modified from https://github.com/influxdata/telegraf/blob/master/plugins/inputs/nvidia_smi/nvidia_smi.go
 // Original License: MIT
@@ -12,13 +12,13 @@ import (
 	"strings"
 )
 
-type NvidiaSMI struct {
+type nvidiaSMI struct {
 	BinPath string
 	data    []byte
 }
 
-// NVIDIAGPUInfo 包含详细的NVIDIA GPU信息
-type NVIDIAGPUInfo struct {
+// nvidiaDevice 包含详细的NVIDIA GPU信息
+type nvidiaDevice struct {
 	Name        string  // GPU型号
 	MemoryTotal uint64  // 总显存 (字节)
 	MemoryUsed  uint64  // 已用显存 (字节)
@@ -26,20 +26,20 @@ type NVIDIAGPUInfo struct {
 	Temperature uint64  // 温度 (摄氏度)
 }
 
-func (smi *NvidiaSMI) GatherModel() ([]string, error) {
+func (smi *nvidiaSMI) modelNames() ([]string, error) {
 	return smi.gatherModel()
 }
 
-func (smi *NvidiaSMI) GatherUsage() ([]float64, error) {
+func (smi *nvidiaSMI) usage() ([]float64, error) {
 	return smi.gatherUsage()
 }
 
-// GatherDetailedInfo 获取详细GPU信息
-func (smi *NvidiaSMI) GatherDetailedInfo() ([]NVIDIAGPUInfo, error) {
+// devices 获取详细GPU信息
+func (smi *nvidiaSMI) devices() ([]nvidiaDevice, error) {
 	return smi.gatherDetailedInfo()
 }
 
-func (smi *NvidiaSMI) Start() error {
+func (smi *nvidiaSMI) start() error {
 	if _, err := os.Stat(smi.BinPath); os.IsNotExist(err) {
 		binPath, err := exec.LookPath("nvidia-smi")
 		if err != nil {
@@ -47,11 +47,11 @@ func (smi *NvidiaSMI) Start() error {
 		}
 		smi.BinPath = binPath
 	}
-	smi.data = smi.pollNvidiaSMI()
+	smi.data = smi.pollnvidiaSMI()
 	return nil
 }
 
-func (smi *NvidiaSMI) pollNvidiaSMI() []byte {
+func (smi *nvidiaSMI) pollnvidiaSMI() []byte {
 	cmd := exec.Command(smi.BinPath, "-q", "-x")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -60,7 +60,7 @@ func (smi *NvidiaSMI) pollNvidiaSMI() []byte {
 	return output
 }
 
-func (smi *NvidiaSMI) gatherModel() ([]string, error) {
+func (smi *nvidiaSMI) gatherModel() ([]string, error) {
 	var stats nvidiaSMIXMLResult
 	var models []string
 
@@ -77,7 +77,7 @@ func (smi *NvidiaSMI) gatherModel() ([]string, error) {
 	return models, nil
 }
 
-func (smi *NvidiaSMI) gatherUsage() ([]float64, error) {
+func (smi *nvidiaSMI) gatherUsage() ([]float64, error) {
 	var stats nvidiaSMIXMLResult
 	var usageList []float64
 
@@ -96,9 +96,9 @@ func (smi *NvidiaSMI) gatherUsage() ([]float64, error) {
 	return usageList, nil
 }
 
-func (smi *NvidiaSMI) gatherDetailedInfo() ([]NVIDIAGPUInfo, error) {
+func (smi *nvidiaSMI) gatherDetailedInfo() ([]nvidiaDevice, error) {
 	var stats nvidiaSMIXMLResult
-	var gpuInfos []NVIDIAGPUInfo
+	var gpuInfos []nvidiaDevice
 
 	if err := xml.Unmarshal(smi.data, &stats); err != nil {
 		return nil, err
@@ -110,7 +110,7 @@ func (smi *NvidiaSMI) gatherDetailedInfo() ([]NVIDIAGPUInfo, error) {
 		memUsed, _ := parseMemoryValue(gpu.FrameBufferMemoryUsage.Used)
 		temp, _ := parseTemperatureValue(gpu.Temperature.GPUTemp)
 
-		gpuInfo := NVIDIAGPUInfo{
+		gpuInfo := nvidiaDevice{
 			Name:        gpu.ProductName,
 			MemoryTotal: memTotal,
 			MemoryUsed:  memUsed,

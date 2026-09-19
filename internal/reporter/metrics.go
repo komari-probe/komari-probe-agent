@@ -112,11 +112,11 @@ func (r *Reporter) GenerateReport() []byte {
 	// GPU监控 - 根据标志决定详细程度
 	if r.options.EnableGPU {
 		// 详细GPU监控模式
-		gpuInfo, err := collector.GetDetailedGPUInfo()
+		gpuInfo, err := r.collector.GPUDevices()
 		if err != nil {
 			message += fmt.Sprintf("failed to get detailed GPU info: %v\n", err)
 			// 降级到基础GPU信息
-			gpuNames, nameErr := collector.GetDetailedGPUHost()
+			gpuNames, nameErr := r.collector.GPUModelNames()
 			if nameErr == nil && len(gpuNames) > 0 {
 				data.GPU = gpuModelsReport{Models: gpuNames}
 			}

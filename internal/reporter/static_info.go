@@ -45,7 +45,7 @@ func (r *Reporter) uploadBasicInfo() error {
 		"mem_total":          r.collector.Ram().Total,
 		"swap_total":         collector.Swap().Total,
 		"disk_total":         r.collector.Disk().Total,
-		"gpu_name":           collector.GpuName(),
+		"gpu_name":           r.collector.GPUName(),
 		"virtualization":     collector.Virtualized(),
 		"version":            version.CurrentVersion,
 	}

@@ -1,15 +1,15 @@
 //go:build freebsd
 // +build freebsd
 
-package collector
+package gpu
 
 import (
 	"os/exec"
 	"strings"
 )
 
-// GpuName returns the name of the GPU on FreeBSD
-func GpuName() string {
+// Name returns the name of the GPU on FreeBSD
+func Name() string {
 	cmd := exec.Command("pciconf", "-lv")
 	output, err := cmd.Output()
 	if err != nil {
@@ -25,5 +25,5 @@ func GpuName() string {
 		}
 	}
 
-	return formatGPUNameList(names)
+	return formatNameList(names)
 }

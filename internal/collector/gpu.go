@@ -1,37 +1,22 @@
 package collector
 
-import (
-	"fmt"
-	"strings"
-)
+import "github.com/komari-probe/komari-probe-agent/internal/collector/gpu"
 
-func formatGPUNameList(names []string) string {
-	counts := make(map[string]int)
-	order := make([]string, 0, len(names))
+// GPUDevice is the metrics reported for one GPU device.
+type GPUDevice = gpu.Device
 
-	for _, name := range names {
-		name = strings.TrimSpace(name)
-		if name == "" {
-			continue
-		}
-		if counts[name] == 0 {
-			order = append(order, name)
-		}
-		counts[name]++
-	}
+// GPUName returns a display name for the host GPUs.
+func (c *Collector) GPUName() string {
+	return gpu.Name()
+}
 
-	if len(order) == 0 {
-		return "None"
-	}
+// GPUModelNames returns the detected GPU model names when detailed monitoring
+// is supported by the current platform and driver.
+func (c *Collector) GPUModelNames() ([]string, error) {
+	return gpu.ModelNames()
+}
 
-	result := make([]string, 0, len(order))
-	for _, name := range order {
-		if counts[name] > 1 {
-			result = append(result, fmt.Sprintf("%s × %d", name, counts[name]))
-			continue
-		}
-		result = append(result, name)
-	}
-
-	return strings.Join(result, ", ")
+// GPUDevices returns detailed metrics for each detected GPU device.
+func (c *Collector) GPUDevices() ([]GPUDevice, error) {
+	return gpu.Devices()
 }

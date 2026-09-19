@@ -1,6 +1,6 @@
 //go:build linux
 
-package collector
+package gpu
 
 import (
 	"errors"
@@ -10,14 +10,14 @@ import (
 	"strings"
 )
 
-func getAMDSysfsDetailedInfo() ([]DetailedGPUInfo, error) {
+func getAMDSysfsDetailedInfo() ([]Device, error) {
 	cards, err := listAMDSysfsCards()
 	if err != nil {
 		return nil, err
 	}
 
-	fallbackName := GpuName()
-	infos := make([]DetailedGPUInfo, 0, len(cards))
+	fallbackName := Name()
+	infos := make([]Device, 0, len(cards))
 	for _, card := range cards {
 		name := card.name
 		if name == "" || name == "None" {
@@ -26,7 +26,7 @@ func getAMDSysfsDetailedInfo() ([]DetailedGPUInfo, error) {
 		if name == "" || name == "None" {
 			name = "AMD GPU"
 		}
-		infos = append(infos, DetailedGPUInfo{
+		infos = append(infos, Device{
 			Name:        name,
 			MemoryTotal: card.memoryTotal,
 			MemoryUsed:  card.memoryUsed,
