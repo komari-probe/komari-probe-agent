@@ -67,7 +67,7 @@ type gpuDeviceReport struct {
 	Temperature uint64  `json:"temperature"`
 }
 
-func GenerateReport() []byte {
+func (r *Reporter) GenerateReport() []byte {
 	message := ""
 	data := report{}
 
@@ -78,7 +78,7 @@ func GenerateReport() []byte {
 	}
 	data.CPU = cpuReport{Usage: cpuUsage}
 
-	ram := collector.Ram()
+	ram := r.collector.Ram()
 	data.Ram = usageReport{Total: ram.Total, Used: ram.Used}
 
 	swap := collector.Swap()
@@ -86,16 +86,16 @@ func GenerateReport() []byte {
 	load := collector.Load()
 	data.Load = loadReport{Load1: load.Load1, Load5: load.Load5, Load15: load.Load15}
 
-	disk := collector.Disk()
+	disk := r.collector.Disk()
 	data.Disk = usageReport{Total: disk.Total, Used: disk.Used}
 
-	totalUp, totalDown, networkUp, networkDown, err := collector.NetworkSpeed()
+	totalUp, totalDown, networkUp, networkDown, err := r.collector.NetworkSpeed()
 	if err != nil {
 		message += fmt.Sprintf("failed to get network speed: %v\n", err)
 	}
 	data.Network = networkReport{Up: networkUp, Down: networkDown, TotalUp: totalUp, TotalDown: totalDown}
 
-	tcpCount, udpCount, err := collector.ConnectionsCount()
+	tcpCount, udpCount, err := r.collector.ConnectionsCount()
 	if err != nil {
 		message += fmt.Sprintf("failed to get connections: %v\n", err)
 	}
@@ -107,10 +107,10 @@ func GenerateReport() []byte {
 	}
 	data.Uptime = uptime
 
-	data.Process = collector.ProcessCount()
+	data.Process = r.collector.ProcessCount()
 
 	// GPU监控 - 根据标志决定详细程度
-	if flags.EnableGPU {
+	if r.options.EnableGPU {
 		// 详细GPU监控模式
 		gpuInfo, err := collector.GetDetailedGPUInfo()
 		if err != nil {

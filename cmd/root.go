@@ -6,23 +6,28 @@ import (
 	"os"
 
 	"github.com/komari-probe/komari-probe-agent/internal/app"
-	"github.com/spf13/cobra"
-
 	"github.com/komari-probe/komari-probe-agent/internal/config"
+	"github.com/spf13/cobra"
 )
 
-var flags = config.GlobalConfig
-
-var RootCmd = &cobra.Command{
-	Use:   "komari-probe-agent",
-	Short: "Komari Probe Agent - Pure, lightweight, and high-precision server monitoring probe",
-	Long:  `Komari Probe Agent is a secure and unprivileged server monitoring probe.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := loadConfiguration(cmd); err != nil {
-			return err
-		}
-		return app.Run(flags)
-	},
+// NewRootCmd creates an isolated command and configuration value for one
+// invocation. No configuration is shared across executions or tests.
+func NewRootCmd() *cobra.Command {
+	cfg := config.Default()
+	root := &cobra.Command{
+		Use:   "komari-probe-agent",
+		Short: "Komari Probe Agent - Pure, lightweight, and high-precision server monitoring probe",
+		Long:  `Komari Probe Agent is a secure and unprivileged server monitoring probe.`,
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			return loadConfiguration(cmd, &cfg)
+		},
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return app.Run(cfg)
+		},
+	}
+	bindPersistentFlags(root, &cfg)
+	root.AddCommand(newCheckMemCmd(&cfg), newListDiskCmd(&cfg))
+	return root
 }
 
 func handleDeprecatedFlags() {
@@ -39,8 +44,7 @@ func handleDeprecatedFlags() {
 
 func Execute() {
 	handleDeprecatedFlags()
-
-	if err := RootCmd.Execute(); err != nil {
+	if err := NewRootCmd().Execute(); err != nil {
 		log.Println(err)
 		os.Exit(1)
 	}
@@ -48,24 +52,24 @@ func Execute() {
 
 // loadConfiguration resolves values using the conventional precedence order:
 // built-in defaults < JSON file < AGENT_* environment variables < explicit CLI flags.
-func loadConfiguration(cmd *cobra.Command) error {
-	cliValues := *flags
+func loadConfiguration(cmd *cobra.Command, dst *config.Config) error {
+	cliValues := *dst
 	configPath := configFilePath(cmd, cliValues)
 
-	*flags = config.Default()
+	*dst = config.Default()
 	if configPath != "" {
-		if err := config.LoadFile(configPath, flags); err != nil {
+		if err := config.LoadFile(configPath, dst); err != nil {
 			return fmt.Errorf("load configuration: %w", err)
 		}
 	}
-	if err := config.ApplyEnvironment(flags, os.LookupEnv); err != nil {
+	if err := config.ApplyEnvironment(dst, os.LookupEnv); err != nil {
 		return fmt.Errorf("load environment configuration: %w", err)
 	}
 
-	applyCLIOverrides(cmd, cliValues)
+	applyCLIOverrides(cmd, cliValues, dst)
 	// config_file selects the source to load; a value inside the file must not
 	// redirect loading after the fact.
-	flags.ConfigFile = configPath
+	dst.ConfigFile = configPath
 	return nil
 }
 
@@ -79,69 +83,69 @@ func configFilePath(cmd *cobra.Command, cliValues config.Config) string {
 	return ""
 }
 
-func applyCLIOverrides(cmd *cobra.Command, cliValues config.Config) {
+func applyCLIOverrides(cmd *cobra.Command, cliValues config.Config, dst *config.Config) {
 	if flagChanged(cmd, "token") {
-		flags.Token = cliValues.Token
+		dst.Token = cliValues.Token
 	}
 	if flagChanged(cmd, "endpoint") {
-		flags.Endpoint = cliValues.Endpoint
+		dst.Endpoint = cliValues.Endpoint
 	}
 	if flagChanged(cmd, "auto-discovery") {
-		flags.AutoDiscoveryKey = cliValues.AutoDiscoveryKey
+		dst.AutoDiscoveryKey = cliValues.AutoDiscoveryKey
 	}
 	if flagChanged(cmd, "interval") {
-		flags.Interval = cliValues.Interval
+		dst.Interval = cliValues.Interval
 	}
 	if flagChanged(cmd, "ignore-unsafe-cert") {
-		flags.IgnoreUnsafeCert = cliValues.IgnoreUnsafeCert
+		dst.IgnoreUnsafeCert = cliValues.IgnoreUnsafeCert
 	}
 	if flagChanged(cmd, "max-retries") {
-		flags.MaxRetries = cliValues.MaxRetries
+		dst.MaxRetries = cliValues.MaxRetries
 	}
 	if flagChanged(cmd, "reconnect-interval") {
-		flags.ReconnectInterval = cliValues.ReconnectInterval
+		dst.ReconnectInterval = cliValues.ReconnectInterval
 	}
 	if flagChanged(cmd, "info-report-interval") {
-		flags.InfoReportInterval = cliValues.InfoReportInterval
+		dst.InfoReportInterval = cliValues.InfoReportInterval
 	}
 	if flagChanged(cmd, "include-nics") {
-		flags.IncludeNics = cliValues.IncludeNics
+		dst.IncludeNics = cliValues.IncludeNics
 	}
 	if flagChanged(cmd, "exclude-nics") {
-		flags.ExcludeNics = cliValues.ExcludeNics
+		dst.ExcludeNics = cliValues.ExcludeNics
 	}
 	if flagChanged(cmd, "include-mountpoint") {
-		flags.IncludeMountpoints = cliValues.IncludeMountpoints
+		dst.IncludeMountpoints = cliValues.IncludeMountpoints
 	}
 	if flagChanged(cmd, "month-rotate") {
-		flags.MonthRotate = cliValues.MonthRotate
+		dst.MonthRotate = cliValues.MonthRotate
 	}
 	if flagChanged(cmd, "memory-include-cache") {
-		flags.MemoryIncludeCache = cliValues.MemoryIncludeCache
+		dst.MemoryIncludeCache = cliValues.MemoryIncludeCache
 	}
 	if flagChanged(cmd, "memory-exclude-bcf") {
-		flags.MemoryReportRawUsed = cliValues.MemoryReportRawUsed
+		dst.MemoryReportRawUsed = cliValues.MemoryReportRawUsed
 	}
 	if flagChanged(cmd, "custom-dns") {
-		flags.CustomDNS = cliValues.CustomDNS
+		dst.CustomDNS = cliValues.CustomDNS
 	}
 	if flagChanged(cmd, "gpu") {
-		flags.EnableGPU = cliValues.EnableGPU
+		dst.EnableGPU = cliValues.EnableGPU
 	}
 	if flagChanged(cmd, "custom-ipv4") {
-		flags.CustomIpv4 = cliValues.CustomIpv4
+		dst.CustomIpv4 = cliValues.CustomIpv4
 	}
 	if flagChanged(cmd, "custom-ipv6") {
-		flags.CustomIpv6 = cliValues.CustomIpv6
+		dst.CustomIpv6 = cliValues.CustomIpv6
 	}
 	if flagChanged(cmd, "get-ip-addr-from-nic") {
-		flags.GetIpAddrFromNic = cliValues.GetIpAddrFromNic
+		dst.GetIpAddrFromNic = cliValues.GetIpAddrFromNic
 	}
 	if flagChanged(cmd, "disable-compression") {
-		flags.DisableCompression = cliValues.DisableCompression
+		dst.DisableCompression = cliValues.DisableCompression
 	}
 	if flagChanged(cmd, "prefer-ip-version") {
-		flags.PreferIPVersion = cliValues.PreferIPVersion
+		dst.PreferIPVersion = cliValues.PreferIPVersion
 	}
 }
 
@@ -149,29 +153,29 @@ func flagChanged(cmd *cobra.Command, name string) bool {
 	return cmd.Flags().Changed(name) || cmd.PersistentFlags().Changed(name)
 }
 
-func init() {
+func bindPersistentFlags(command *cobra.Command, cfg *config.Config) {
 	defaults := config.Default()
-	RootCmd.PersistentFlags().StringVarP(&flags.Token, "token", "t", "", "API token")
-	RootCmd.PersistentFlags().StringVarP(&flags.Endpoint, "endpoint", "e", "", "API endpoint")
-	RootCmd.PersistentFlags().StringVar(&flags.AutoDiscoveryKey, "auto-discovery", "", "Auto discovery key for the agent")
-	RootCmd.PersistentFlags().Float64VarP(&flags.Interval, "interval", "i", defaults.Interval, "Interval in seconds")
-	RootCmd.PersistentFlags().BoolVarP(&flags.IgnoreUnsafeCert, "ignore-unsafe-cert", "u", false, "Ignore unsafe certificate errors")
-	RootCmd.PersistentFlags().IntVarP(&flags.MaxRetries, "max-retries", "r", defaults.MaxRetries, "Maximum number of retries")
-	RootCmd.PersistentFlags().IntVarP(&flags.ReconnectInterval, "reconnect-interval", "c", defaults.ReconnectInterval, "Reconnect interval in seconds")
-	RootCmd.PersistentFlags().IntVar(&flags.InfoReportInterval, "info-report-interval", defaults.InfoReportInterval, "Interval in minutes for reporting basic info")
-	RootCmd.PersistentFlags().StringVar(&flags.IncludeNics, "include-nics", "", "Comma-separated list of network interfaces to include")
-	RootCmd.PersistentFlags().StringVar(&flags.ExcludeNics, "exclude-nics", "", "Comma-separated list of network interfaces to exclude")
-	RootCmd.PersistentFlags().StringVar(&flags.IncludeMountpoints, "include-mountpoint", "", "Semicolon-separated list of mount points to include for disk statistics")
-	RootCmd.PersistentFlags().IntVar(&flags.MonthRotate, "month-rotate", 0, "Month reset for network statistics (0 to disable)")
-	RootCmd.PersistentFlags().BoolVar(&flags.MemoryIncludeCache, "memory-include-cache", false, "Include cache/buffer in memory usage")
-	RootCmd.PersistentFlags().BoolVar(&flags.MemoryReportRawUsed, "memory-exclude-bcf", false, "Use \"raminfo.Used = v.Total - v.Free - v.Buffers - v.Cached\" calculation for memory usage")
-	RootCmd.PersistentFlags().StringVar(&flags.CustomDNS, "custom-dns", "", "Custom DNS server to use (e.g. 8.8.8.8, 114.114.114.114). By default, the program uses the system DNS resolver.")
-	RootCmd.PersistentFlags().BoolVar(&flags.EnableGPU, "gpu", false, "Enable detailed GPU monitoring (usage, memory, multi-GPU support)")
-	RootCmd.PersistentFlags().StringVar(&flags.CustomIpv4, "custom-ipv4", "", "Custom IPv4 address to use")
-	RootCmd.PersistentFlags().StringVar(&flags.CustomIpv6, "custom-ipv6", "", "Custom IPv6 address to use")
-	RootCmd.PersistentFlags().BoolVar(&flags.GetIpAddrFromNic, "get-ip-addr-from-nic", false, "Get IP address from network interface")
-	RootCmd.PersistentFlags().StringVar(&flags.ConfigFile, "config", "", "Path to the configuration file")
-	RootCmd.PersistentFlags().BoolVar(&flags.DisableCompression, "disable-compression", false, "Disable v2 gzip/permessage-deflate compression")
-	RootCmd.PersistentFlags().StringVar(&flags.PreferIPVersion, "prefer-ip-version", "", "Prefer IP version for dashboard connections: 4 or 6")
-	RootCmd.PersistentFlags().ParseErrorsWhitelist.UnknownFlags = true
+	command.PersistentFlags().StringVarP(&cfg.Token, "token", "t", "", "API token")
+	command.PersistentFlags().StringVarP(&cfg.Endpoint, "endpoint", "e", "", "API endpoint")
+	command.PersistentFlags().StringVar(&cfg.AutoDiscoveryKey, "auto-discovery", "", "Auto discovery key for the agent")
+	command.PersistentFlags().Float64VarP(&cfg.Interval, "interval", "i", defaults.Interval, "Interval in seconds")
+	command.PersistentFlags().BoolVarP(&cfg.IgnoreUnsafeCert, "ignore-unsafe-cert", "u", false, "Ignore unsafe certificate errors")
+	command.PersistentFlags().IntVarP(&cfg.MaxRetries, "max-retries", "r", defaults.MaxRetries, "Maximum number of retries")
+	command.PersistentFlags().IntVarP(&cfg.ReconnectInterval, "reconnect-interval", "c", defaults.ReconnectInterval, "Reconnect interval in seconds")
+	command.PersistentFlags().IntVar(&cfg.InfoReportInterval, "info-report-interval", defaults.InfoReportInterval, "Interval in minutes for reporting basic info")
+	command.PersistentFlags().StringVar(&cfg.IncludeNics, "include-nics", "", "Comma-separated list of network interfaces to include")
+	command.PersistentFlags().StringVar(&cfg.ExcludeNics, "exclude-nics", "", "Comma-separated list of network interfaces to exclude")
+	command.PersistentFlags().StringVar(&cfg.IncludeMountpoints, "include-mountpoint", "", "Semicolon-separated list of mount points to include for disk statistics")
+	command.PersistentFlags().IntVar(&cfg.MonthRotate, "month-rotate", 0, "Month reset for network statistics (0 to disable)")
+	command.PersistentFlags().BoolVar(&cfg.MemoryIncludeCache, "memory-include-cache", false, "Include cache/buffer in memory usage")
+	command.PersistentFlags().BoolVar(&cfg.MemoryReportRawUsed, "memory-exclude-bcf", false, "Use \"raminfo.Used = v.Total - v.Free - v.Buffers - v.Cached\" calculation for memory usage")
+	command.PersistentFlags().StringVar(&cfg.CustomDNS, "custom-dns", "", "Custom DNS server to use (e.g. 8.8.8.8, 114.114.114.114). By default, the program uses the system DNS resolver.")
+	command.PersistentFlags().BoolVar(&cfg.EnableGPU, "gpu", false, "Enable detailed GPU monitoring (usage, memory, multi-GPU support)")
+	command.PersistentFlags().StringVar(&cfg.CustomIpv4, "custom-ipv4", "", "Custom IPv4 address to use")
+	command.PersistentFlags().StringVar(&cfg.CustomIpv6, "custom-ipv6", "", "Custom IPv6 address to use")
+	command.PersistentFlags().BoolVar(&cfg.GetIpAddrFromNic, "get-ip-addr-from-nic", false, "Get IP address from network interface")
+	command.PersistentFlags().StringVar(&cfg.ConfigFile, "config", "", "Path to the configuration file")
+	command.PersistentFlags().BoolVar(&cfg.DisableCompression, "disable-compression", false, "Disable v2 gzip/permessage-deflate compression")
+	command.PersistentFlags().StringVar(&cfg.PreferIPVersion, "prefer-ip-version", "", "Prefer IP version for dashboard connections: 4 or 6")
+	command.PersistentFlags().ParseErrorsWhitelist.UnknownFlags = true
 }

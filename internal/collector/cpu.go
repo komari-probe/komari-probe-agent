@@ -6,11 +6,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/komari-probe/komari-probe-agent/internal/config"
 	"github.com/shirou/gopsutil/v4/cpu"
 )
-
-var flags = config.GlobalConfig
 
 type CpuInfo struct {
 	CPUName          string  `json:"cpu_name"`

@@ -14,9 +14,9 @@ import (
 	"github.com/shirou/gopsutil/v4/net"
 )
 
-func ConnectionsCount() (tcpCount, udpCount int, err error) {
+func (c *Collector) ConnectionsCount() (tcpCount, udpCount int, err error) {
 	if runtime.GOOS == "linux" {
-		return connectionsCountWithProcFallback(procRoot(), gopsutilConnectionsCount)
+		return connectionsCountWithProcFallback(c.procRoot(), gopsutilConnectionsCount)
 	}
 
 	return gopsutilConnectionsCount()
@@ -49,9 +49,9 @@ func gopsutilConnectionsCount() (tcpCount, udpCount int, err error) {
 	return len(tcps), len(udps), nil
 }
 
-func procRoot() string {
-	if flags.HostProc != "" {
-		return flags.HostProc
+func (c *Collector) procRoot() string {
+	if c.options.HostProc != "" {
+		return c.options.HostProc
 	}
 	return "/proc"
 }
@@ -215,15 +215,15 @@ type VnstatOutput struct {
 	Interfaces    []VnstatInterface `json:"interfaces"`
 }
 
-func NetworkSpeed() (totalUp, totalDown, upSpeed, downSpeed uint64, err error) {
-	includeNics := parseNics(flags.IncludeNics)
-	excludeNics := parseNics(flags.ExcludeNics)
+func (c *Collector) NetworkSpeed() (totalUp, totalDown, upSpeed, downSpeed uint64, err error) {
+	includeNics := parseNics(c.options.IncludeNics)
+	excludeNics := parseNics(c.options.ExcludeNics)
 
 	// 如果设置了月重置（非0），统计totalUp、totalDown
-	if flags.MonthRotate != 0 {
+	if c.options.MonthRotate != 0 {
 		netstatic.StartOrContinue() // 确保netstatic在运行
 		now := uint64(time.Now().Unix())
-		resetDay := uint64(netstatic.GetLastResetDate(flags.MonthRotate, time.Now()).Unix())
+		resetDay := uint64(netstatic.GetLastResetDate(c.options.MonthRotate, time.Now()).Unix())
 		nicStatics, err := netstatic.GetTotalTrafficBetween(resetDay, now)
 		if err != nil {
 			// 如果netstatic失败，回退到原来的方法，并返回额外的错误信息
@@ -362,9 +362,9 @@ func shouldInclude(nicName string, includeNics, excludeNics map[string]struct{})
 	return len(includeNics) == 0 // 如果没有定义白名单，则默认包含所有非回环接口
 }
 
-func InterfaceList() ([]string, error) {
-	includeNics := parseNics(flags.IncludeNics)
-	excludeNics := parseNics(flags.ExcludeNics)
+func (c *Collector) InterfaceList() ([]string, error) {
+	includeNics := parseNics(c.options.IncludeNics)
+	excludeNics := parseNics(c.options.ExcludeNics)
 	interfaces := []string{}
 
 	ioCounters, err := net.IOCounters(true)
