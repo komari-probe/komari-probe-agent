@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/komari-probe/komari-probe-agent/internal/config"
+	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
 	"github.com/komari-probe/komari-probe-agent/internal/protocol/transport"
 	v2 "github.com/komari-probe/komari-probe-agent/internal/protocol/v2"
-	"github.com/komari-probe/komari-probe-agent/pkg/dnsresolver"
 	"github.com/komari-probe/komari-probe-agent/pkg/ws"
 	ping "github.com/prometheus-community/pro-bing"
 )
@@ -240,7 +240,7 @@ func postV2RPC(payload interface{}) error {
 	if compressed {
 		req.Header.Set("Content-Encoding", "gzip")
 	}
-	client := dnsresolver.GetHTTPClientWithPreference(30*time.Second, flags.PreferIPVersion, flags.IgnoreUnsafeCert)
+	client := connectivity.GetHTTPClientWithPreference(30*time.Second, flags.PreferIPVersion, flags.IgnoreUnsafeCert)
 	resp, err := client.Do(req)
 	if err != nil {
 		return err

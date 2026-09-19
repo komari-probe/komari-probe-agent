@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/komari-probe/komari-probe-agent/pkg/dnsresolver"
+	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
 )
 
 var (
@@ -18,7 +18,7 @@ var (
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				dialer := dnsresolver.GetNetDialer(15 * time.Second)
+				dialer := connectivity.GetNetDialer(15 * time.Second)
 				return dialer.DialContext(ctx, "tcp4", addr) // 锁v4防止出现问题
 			},
 			MaxIdleConns:          10,
@@ -32,7 +32,7 @@ var (
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				dialer := dnsresolver.GetNetDialer(15 * time.Second)
+				dialer := connectivity.GetNetDialer(15 * time.Second)
 				return dialer.DialContext(ctx, "tcp6", addr) // 锁v6防止出现问题
 			},
 			MaxIdleConns:          10,
