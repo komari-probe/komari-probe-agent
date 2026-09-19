@@ -7,15 +7,15 @@ import (
 )
 
 // InitNetstatic 在启用了月度重置统计时，启动 netstatic 并同步网卡配置
-func InitNetstatic() {
-	if flags.MonthRotate == 0 {
+func (c *Collector) InitNetstatic() {
+	if c.options.MonthRotate == 0 {
 		return
 	}
 	err := netstatic.StartOrContinue()
 	if err != nil {
 		log.Println("Failed to start netstatic monitoring:", err)
 	}
-	nics, err := InterfaceList()
+	nics, err := c.InterfaceList()
 	if err != nil {
 		log.Println("Failed to get interface list for netstatic:", err)
 	}

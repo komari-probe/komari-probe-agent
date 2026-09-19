@@ -27,25 +27,21 @@ func TestLoadConfigurationPrecedence(t *testing.T) {
 		t.Fatalf("ParseFlags() error = %v", err)
 	}
 
-	originalFlags := flags
-	flags = &cliValues
-	t.Cleanup(func() { flags = originalFlags })
-
-	if err := loadConfiguration(command); err != nil {
+	if err := loadConfiguration(command, &cliValues); err != nil {
 		t.Fatalf("loadConfiguration() error = %v", err)
 	}
 
-	if flags.Token != "from-cli" {
-		t.Errorf("Token = %q, want CLI value", flags.Token)
+	if cliValues.Token != "from-cli" {
+		t.Errorf("Token = %q, want CLI value", cliValues.Token)
 	}
-	if flags.Interval != 30 {
-		t.Errorf("Interval = %v, want CLI value", flags.Interval)
+	if cliValues.Interval != 30 {
+		t.Errorf("Interval = %v, want CLI value", cliValues.Interval)
 	}
-	if flags.ReconnectInterval != 9 {
-		t.Errorf("ReconnectInterval = %d, want file value", flags.ReconnectInterval)
+	if cliValues.ReconnectInterval != 9 {
+		t.Errorf("ReconnectInterval = %d, want file value", cliValues.ReconnectInterval)
 	}
-	if flags.ConfigFile != configPath {
-		t.Errorf("ConfigFile = %q, want %q", flags.ConfigFile, configPath)
+	if cliValues.ConfigFile != configPath {
+		t.Errorf("ConfigFile = %q, want %q", cliValues.ConfigFile, configPath)
 	}
 }
 
@@ -58,18 +54,14 @@ func TestEnvironmentSelectsConfigFile(t *testing.T) {
 
 	cliValues := config.Default()
 	command := newConfigurationCommand(&cliValues)
-	originalFlags := flags
-	flags = &cliValues
-	t.Cleanup(func() { flags = originalFlags })
-
-	if err := loadConfiguration(command); err != nil {
+	if err := loadConfiguration(command, &cliValues); err != nil {
 		t.Fatalf("loadConfiguration() error = %v", err)
 	}
-	if flags.Interval != 12 {
-		t.Errorf("Interval = %v, want file value", flags.Interval)
+	if cliValues.Interval != 12 {
+		t.Errorf("Interval = %v, want file value", cliValues.Interval)
 	}
-	if flags.ConfigFile != configPath {
-		t.Errorf("ConfigFile = %q, want %q", flags.ConfigFile, configPath)
+	if cliValues.ConfigFile != configPath {
+		t.Errorf("ConfigFile = %q, want %q", cliValues.ConfigFile, configPath)
 	}
 }
 

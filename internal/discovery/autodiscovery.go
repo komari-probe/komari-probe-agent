@@ -17,8 +17,6 @@ import (
 	"github.com/komari-probe/komari-probe-agent/pkg/idna"
 )
 
-var flags = config.GlobalConfig
-
 // AutoDiscoveryConfig 自动发现配置结构体
 type AutoDiscoveryConfig struct {
 	UUID  string `json:"uuid"`
@@ -95,22 +93,23 @@ func saveAutoDiscoveryConfig(autoDiscoveryConfig *AutoDiscoveryConfig) error {
 	return nil
 }
 
-// registerWithAutoDiscovery 使用自动发现key注册
-func registerWithAutoDiscovery() error {
+// registerWithAutoDiscovery uses the configured discovery key to register and
+// returns the credentials that should be used for the current Agent run.
+func registerWithAutoDiscovery(cfg config.Config) (*AutoDiscoveryConfig, error) {
 	// 构造注册请求
 	requestData := RegisterRequest{
-		Key: flags.AutoDiscoveryKey,
+		Key: cfg.AutoDiscoveryKey,
 	}
 
 	hostname, _ := os.Hostname()
 
 	jsonData, err := json.Marshal(requestData)
 	if err != nil {
-		return fmt.Errorf("failed to marshal register request: %v", err)
+		return nil, fmt.Errorf("failed to marshal register request: %v", err)
 	}
 
 	// 构造请求URL
-	endpoint := flags.Endpoint
+	endpoint := cfg.Endpoint
 	if len(endpoint) > 0 && endpoint[len(endpoint)-1] == '/' {
 		endpoint = endpoint[:len(endpoint)-1]
 	}
@@ -127,36 +126,36 @@ func registerWithAutoDiscovery() error {
 	// 创建HTTP请求
 	req, err := http.NewRequest("POST", registerURL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return fmt.Errorf("failed to create register request: %v", err)
+		return nil, fmt.Errorf("failed to create register request: %v", err)
 	}
 
 	// 设置请求头
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", flags.AutoDiscoveryKey))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", cfg.AutoDiscoveryKey))
 
 	// 发送请求
-	client := connectivity.GetHTTPClientWithPreference(30*time.Second, flags.PreferIPVersion, flags.IgnoreUnsafeCert)
+	client := connectivity.GetHTTPClientWithPreference(30*time.Second, cfg.PreferIPVersion, cfg.IgnoreUnsafeCert)
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to send register request: %v", err)
+		return nil, fmt.Errorf("failed to send register request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	// 检查响应状态
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("register request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("register request failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
 	// 解析响应
 	var registerResp RegisterResponse
 	if err := json.NewDecoder(resp.Body).Decode(&registerResp); err != nil {
-		return fmt.Errorf("failed to parse register response: %v", err)
+		return nil, fmt.Errorf("failed to parse register response: %v", err)
 	}
 
 	// 检查响应状态
 	if registerResp.Status != "success" {
-		return fmt.Errorf("register request failed: %s", registerResp.Message)
+		return nil, fmt.Errorf("register request failed: %s", registerResp.Message)
 	}
 
 	// 保存配置
@@ -166,18 +165,18 @@ func registerWithAutoDiscovery() error {
 	}
 
 	if err := saveAutoDiscoveryConfig(autoDiscoveryConfig); err != nil {
-		return fmt.Errorf("failed to save auto-discovery config: %v", err)
+		return nil, fmt.Errorf("failed to save auto-discovery config: %v", err)
 	}
 
-	// 设置token
-	flags.Token = registerResp.Data.Token
 	log.Printf("Successfully registered with auto-discovery. UUID: %s", registerResp.Data.UUID)
 
-	return nil
+	return autoDiscoveryConfig, nil
 }
 
-// HandleAutoDiscovery 处理自动发现逻辑
-func HandleAutoDiscovery() error {
+// ResolveAutoDiscovery loads or registers auto-discovery credentials and
+// returns a copy of cfg with the effective token. It never mutates shared
+// process configuration.
+func ResolveAutoDiscovery(cfg config.Config) (config.Config, error) {
 	// 尝试加载现有配置
 	autoDiscoveryConfig, err := loadAutoDiscoveryConfig()
 	if err != nil {
@@ -187,12 +186,17 @@ func HandleAutoDiscovery() error {
 
 	if autoDiscoveryConfig != nil {
 		// 配置文件存在，使用现有token
-		flags.Token = autoDiscoveryConfig.Token
+		cfg.Token = autoDiscoveryConfig.Token
 		log.Printf("Using existing auto-discovery token for UUID: %s", autoDiscoveryConfig.UUID)
-		return nil
+		return cfg, nil
 	}
 
 	// 配置文件不存在，进行注册
 	log.Println("Auto-discovery config not found, registering with server...")
-	return registerWithAutoDiscovery()
+	autoDiscoveryConfig, err = registerWithAutoDiscovery(cfg)
+	if err != nil {
+		return cfg, err
+	}
+	cfg.Token = autoDiscoveryConfig.Token
+	return cfg, nil
 }

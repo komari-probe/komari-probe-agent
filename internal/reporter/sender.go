@@ -38,23 +38,23 @@ func (e *HTTPStatusError) Error() string {
 
 // sendRPC serializes a v2 RPC value and delivers it over the active WebSocket
 // connection, falling back to HTTP when no connection is available.
-func sendRPC(conn *connectivity.SafeConn, payload any) error {
+func (r *Reporter) sendRPC(conn *connectivity.SafeConn, payload any) error {
 	encoded, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
-	return sendRPCPayload(conn, encoded)
+	return r.sendRPCPayload(conn, encoded)
 }
 
-func sendRPCPayload(conn *connectivity.SafeConn, payload []byte) error {
+func (r *Reporter) sendRPCPayload(conn *connectivity.SafeConn, payload []byte) error {
 	if conn != nil {
 		return conn.WriteMessage(websocket.TextMessage, payload)
 	}
-	return postAndValidateRPC(context.Background(), payload, 30*time.Second)
+	return r.postAndValidateRPC(context.Background(), payload, 30*time.Second)
 }
 
-func postAndValidateRPC(ctx context.Context, payload []byte, timeout time.Duration) error {
-	response, err := postRPCPayload(ctx, payload, timeout)
+func (r *Reporter) postAndValidateRPC(ctx context.Context, payload []byte, timeout time.Duration) error {
+	response, err := r.postRPCPayload(ctx, payload, timeout)
 	if err != nil {
 		return err
 	}
@@ -68,11 +68,11 @@ func postAndValidateRPC(ctx context.Context, payload []byte, timeout time.Durati
 // postRPCPayload performs the shared authenticated, compressed HTTP fallback
 // request and returns its raw response body for callers that need to process
 // v2 events.
-func postRPCPayload(ctx context.Context, payload []byte, timeout time.Duration) ([]byte, error) {
-	endpoint := strings.TrimSuffix(flags.Endpoint, "/") + "/api/clients/v2/rpc?token=" + flags.Token
+func (r *Reporter) postRPCPayload(ctx context.Context, payload []byte, timeout time.Duration) ([]byte, error) {
+	endpoint := strings.TrimSuffix(r.options.Endpoint, "/") + "/api/clients/v2/rpc?token=" + r.options.Token
 	body := payload
 	compressed := false
-	if !flags.DisableCompression {
+	if !r.options.DisableCompression {
 		if gz, err := gzipPayload(payload); err == nil {
 			body = gz
 			compressed = true
@@ -88,7 +88,7 @@ func postRPCPayload(ctx context.Context, payload []byte, timeout time.Duration) 
 		req.Header.Set("Content-Encoding", "gzip")
 	}
 
-	client := connectivity.GetHTTPClientWithPreference(timeout, flags.PreferIPVersion, flags.IgnoreUnsafeCert)
+	client := connectivity.GetHTTPClientWithPreference(timeout, r.options.PreferIPVersion, r.options.IgnoreUnsafeCert)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err

@@ -8,18 +8,13 @@ import (
 	"strconv"
 )
 
-// ProcessCount returns the number of running processes
-func ProcessCount() (count int) {
-	return processCountLinux()
-}
-
 // processCountLinux counts processes by reading /proc directory
-func processCountLinux() (count int) {
+func processCount(hostProc string) (count int) {
 	procDir := "/proc"
 
-	if flags.HostProc != "" {
-		if info, err := os.Stat(flags.HostProc); err == nil && info.IsDir() {
-			procDir = flags.HostProc
+	if hostProc != "" {
+		if info, err := os.Stat(hostProc); err == nil && info.IsDir() {
+			procDir = hostProc
 		}
 	}
 

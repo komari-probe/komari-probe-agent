@@ -12,7 +12,7 @@ type DiskInfo struct {
 	Used  uint64 `json:"used"`
 }
 
-func Disk() DiskInfo {
+func (c *Collector) Disk() DiskInfo {
 	diskinfo := DiskInfo{}
 	// 获取所有分区，使用 true 避免物理磁盘被 gopsutil 错误排除
 	usage, err := disk.Partitions(true)
@@ -21,8 +21,8 @@ func Disk() DiskInfo {
 		diskinfo.Used = 0
 	} else {
 		// 如果指定了自定义挂载点，只统计指定的挂载点
-		if flags.IncludeMountpoints != "" {
-			includeMounts := strings.Split(flags.IncludeMountpoints, ";")
+		if c.options.IncludeMountpoints != "" {
+			includeMounts := strings.Split(c.options.IncludeMountpoints, ";")
 			for _, mountpoint := range includeMounts {
 				mountpoint = strings.TrimSpace(mountpoint)
 				if mountpoint != "" {
@@ -164,10 +164,10 @@ func isPhysicalDisk(part disk.PartitionStat) bool {
 	return true
 }
 
-func DiskList() ([]string, error) {
+func (c *Collector) DiskList() ([]string, error) {
 	diskList := []string{}
-	if flags.IncludeMountpoints != "" {
-		includeMounts := strings.Split(flags.IncludeMountpoints, ";")
+	if c.options.IncludeMountpoints != "" {
+		includeMounts := strings.Split(c.options.IncludeMountpoints, ";")
 		for _, mountpoint := range includeMounts {
 			mountpoint = strings.TrimSpace(mountpoint)
 			if mountpoint != "" {

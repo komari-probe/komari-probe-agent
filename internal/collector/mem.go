@@ -180,9 +180,8 @@ func CallFree() RamInfo {
 	return raminfo
 }
 
-func Ram() RamInfo {
-	// Use global config
-	if flags.MemoryIncludeCache {
+func (c *Collector) Ram() RamInfo {
+	if c.options.MemoryIncludeCache {
 		v, err := mem.VirtualMemory()
 		if err != nil {
 			return RamInfo{}
@@ -194,7 +193,7 @@ func Ram() RamInfo {
 		}
 	}
 
-	if flags.MemoryReportRawUsed {
+	if c.options.MemoryReportRawUsed {
 		return GetMemHtopLike()
 	}
 

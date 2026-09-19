@@ -7,35 +7,31 @@ import (
 
 	"github.com/komari-probe/komari-probe-agent/internal/collector"
 	"github.com/komari-probe/komari-probe-agent/internal/version"
-
-	"github.com/komari-probe/komari-probe-agent/internal/config"
 )
 
-var flags = config.GlobalConfig
-
-func DoUploadBasicInfoWorks() {
-	ticker := time.NewTicker(time.Duration(flags.InfoReportInterval) * time.Minute)
+func (r *Reporter) RunStaticInfoReporter() {
+	ticker := time.NewTicker(time.Duration(r.options.InfoReportInterval) * time.Minute)
 	for range ticker.C {
-		err := uploadBasicInfo()
+		err := r.uploadBasicInfo()
 		if err != nil {
 			log.Println("Error uploading basic info:", err)
 		}
 	}
 }
-func UpdateBasicInfo() {
-	err := uploadBasicInfo()
+func (r *Reporter) UpdateBasicInfo() {
+	err := r.uploadBasicInfo()
 	if err != nil {
 		log.Println("Error uploading basic info:", err)
 	} else {
 		log.Println("Basic info uploaded successfully")
 	}
 }
-func uploadBasicInfo() error {
+func (r *Reporter) uploadBasicInfo() error {
 	cpu := collector.CpuStaticInfo()
 
 	osname := collector.OSName()
 	kernelVersion := collector.KernelVersion()
-	ipv4, ipv6, _ := collector.GetIPAddress()
+	ipv4, ipv6, _ := r.collector.GetIPAddress()
 
 	data := map[string]any{
 		"cpu_name":           cpu.CPUName,
@@ -46,13 +42,13 @@ func uploadBasicInfo() error {
 		"kernel_version":     kernelVersion,
 		"ipv4":               ipv4,
 		"ipv6":               ipv6,
-		"mem_total":          collector.Ram().Total,
+		"mem_total":          r.collector.Ram().Total,
 		"swap_total":         collector.Swap().Total,
-		"disk_total":         collector.Disk().Total,
+		"disk_total":         r.collector.Disk().Total,
 		"gpu_name":           collector.GpuName(),
 		"virtualization":     collector.Virtualized(),
 		"version":            version.CurrentVersion,
 	}
 
-	return postAndValidateRPC(context.Background(), buildBasicInfoPayload(data), 30*time.Second)
+	return r.postAndValidateRPC(context.Background(), buildBasicInfoPayload(data), 30*time.Second)
 }

@@ -8,14 +8,8 @@ import (
 	"unsafe"
 )
 
-// ProcessCount returns the number of running processes
-func ProcessCount() (count int) {
-	return processCountWindows()
-
-}
-
 // processCountWindows counts processes using Windows API
-func processCountWindows() (count int) {
+func processCount(_ string) (count int) {
 	// Load kernel32.dll
 	kernel32, err := syscall.LoadLibrary("kernel32.dll")
 	if err != nil {

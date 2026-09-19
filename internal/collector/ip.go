@@ -120,10 +120,10 @@ func GetIPv6Address() (string, error) {
 	return "", nil
 }
 
-func GetIPAddress() (ipv4, ipv6 string, err error) {
+func (c *Collector) GetIPAddress() (ipv4, ipv6 string, err error) {
 
-	if flags.GetIpAddrFromNic {
-		allowNics, err := InterfaceList()
+	if c.options.GetIPAddrFromNIC {
+		allowNics, err := c.InterfaceList()
 		if err != nil {
 			log.Printf("Get Interface List Error: %v", err)
 		} else {
@@ -135,8 +135,8 @@ func GetIPAddress() (ipv4, ipv6 string, err error) {
 		}
 	}
 
-	if flags.CustomIpv4 != "" {
-		ipv4 = flags.CustomIpv4
+	if c.options.CustomIPv4 != "" {
+		ipv4 = c.options.CustomIPv4
 	} else {
 		ipv4, err = GetIPv4Address()
 		if err != nil {
@@ -144,8 +144,8 @@ func GetIPAddress() (ipv4, ipv6 string, err error) {
 			ipv4 = ""
 		}
 	}
-	if flags.CustomIpv6 != "" {
-		ipv6 = flags.CustomIpv6
+	if c.options.CustomIPv6 != "" {
+		ipv6 = c.options.CustomIPv6
 	} else {
 		ipv6, err = GetIPv6Address()
 		if err != nil {
