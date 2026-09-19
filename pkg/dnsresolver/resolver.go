@@ -40,7 +40,6 @@ type httpClientKey struct {
 	timeout          time.Duration
 	ignoreUnsafeCert bool
 	preferIPVersion  string
-	forceHTTP2       bool
 }
 
 // SetCustomDNSServer 设置自定义DNS服务器
@@ -118,16 +117,7 @@ func GetCustomResolver() *net.Resolver {
 	}
 }
 
-// buildTransport 构建带有自定义解析/拨号策略的 HTTP 传输层，可注入 TLS 配置
-func buildTransport(timeout time.Duration, tlsConfig *tls.Config) *http.Transport {
-	return buildTransportWithPreference(timeout, tlsConfig, "")
-}
-
-func buildTransportWithPreference(timeout time.Duration, tlsConfig *tls.Config, preferIPVersion string) *http.Transport {
-	return buildTransportWithPreferenceAndHTTP2(timeout, tlsConfig, preferIPVersion, true)
-}
-
-func buildTransportWithPreferenceAndHTTP2(timeout time.Duration, tlsConfig *tls.Config, preferIPVersion string, forceHTTP2 bool) *http.Transport {
+func buildTransport(timeout time.Duration, tlsConfig *tls.Config, preferIPVersion string) *http.Transport {
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}
@@ -164,47 +154,31 @@ func buildTransportWithPreferenceAndHTTP2(timeout time.Duration, tlsConfig *tls.
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 		TLSClientConfig:       tlsConfig,
-		ForceAttemptHTTP2:     forceHTTP2,
-	}
-	if !forceHTTP2 {
-		// A non-nil empty TLSNextProto map explicitly disables the automatic
-		// HTTP/2 protocol upgrade in net/http.
-		transport.TLSNextProto = map[string]func(string, *tls.Conn) http.RoundTripper{}
+		ForceAttemptHTTP2:     true,
 	}
 	return transport
-}
-
-func GetHTTPClient(timeout time.Duration, ignoreUnsafeCert bool) *http.Client {
-	return getHTTPClient(timeout, "", true, ignoreUnsafeCert)
 }
 
 // GetHTTPClientWithPreference 返回一个使用自定义解析器并按指定 IP 版本排序的 HTTP 客户端。
 // preferIPVersion 为 "4" 或 "6" 时固定优先对应地址；为空时保留自动选择逻辑。
 func GetHTTPClientWithPreference(timeout time.Duration, preferIPVersion string, ignoreUnsafeCert bool) *http.Client {
-	return getHTTPClient(timeout, normalizeIPVersionPreference(preferIPVersion), true, ignoreUnsafeCert)
+	return getHTTPClient(timeout, normalizeIPVersionPreference(preferIPVersion), ignoreUnsafeCert)
 }
 
-// GetHTTPClientWithoutHTTP2 returns a client intended for long-lived binary
-// streams. Keeping those streams on HTTP/1.1 avoids proxy-specific HTTP/2
-// stream resets while leaving the control-plane clients on HTTP/2.
-func GetHTTPClientWithoutHTTP2(timeout time.Duration, preferIPVersion string, ignoreUnsafeCert bool) *http.Client {
-	return getHTTPClient(timeout, normalizeIPVersionPreference(preferIPVersion), false, ignoreUnsafeCert)
-}
-
-func getHTTPClient(timeout time.Duration, preferIPVersion string, forceHTTP2 bool, ignoreUnsafeCert bool) *http.Client {
+func getHTTPClient(timeout time.Duration, preferIPVersion string, ignoreUnsafeCert bool) *http.Client {
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}
-	key := httpClientKey{timeout: timeout, ignoreUnsafeCert: ignoreUnsafeCert, preferIPVersion: preferIPVersion, forceHTTP2: forceHTTP2}
+	key := httpClientKey{timeout: timeout, ignoreUnsafeCert: ignoreUnsafeCert, preferIPVersion: preferIPVersion}
 	httpClientMu.Lock()
 	defer httpClientMu.Unlock()
 	if client := httpClients[key]; client != nil {
 		return client
 	}
 	client := &http.Client{
-		Transport: buildTransportWithPreferenceAndHTTP2(timeout, &tls.Config{
+		Transport: buildTransport(timeout, &tls.Config{
 			InsecureSkipVerify: ignoreUnsafeCert,
-		}, preferIPVersion, forceHTTP2),
+		}, preferIPVersion),
 		Timeout: timeout,
 	}
 	httpClients[key] = client
@@ -222,14 +196,6 @@ func GetNetDialer(timeout time.Duration) *net.Dialer {
 		KeepAlive: 30 * time.Second,
 		Resolver:  GetCustomResolver(),
 	}
-}
-
-// GetDialContext 返回一个自定义 DialContext：
-// - 使用自定义解析器解析主机名
-// - 根据本机网络自动选择 IPv4 或 IPv6 优先
-// - 逐个 IP 进行连接尝试，直到成功或全部失败
-func GetDialContext(timeout time.Duration) func(ctx context.Context, network, addr string) (net.Conn, error) {
-	return GetDialContextWithPreference(timeout, "")
 }
 
 // GetDialContextWithPreference 返回一个可显式指定 IPv4/IPv6 优先级的 DialContext。
