@@ -14,13 +14,6 @@ func TestDetailedGPUDetection(t *testing.T) {
 	t.Logf("Detected GPUs: %v", models)
 
 	if len(models) > 0 {
-		usage, err := GetDetailedGPUState()
-		if err != nil {
-			t.Logf("GPU state collection failed: %v", err)
-		} else {
-			t.Logf("GPU usage: %v", usage)
-		}
-
 		// 测试详细信息获取
 		detailedInfo, err := GetDetailedGPUInfo()
 		if err != nil {

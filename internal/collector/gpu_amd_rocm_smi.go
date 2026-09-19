@@ -41,10 +41,6 @@ func (rsmi *ROCmSMI) GatherModel() ([]string, error) {
 	return rsmi.gatherModel()
 }
 
-func (rsmi *ROCmSMI) GatherUsage() ([]float64, error) {
-	return rsmi.gatherUsage()
-}
-
 // GatherDetailedInfo 获取详细GPU信息
 func (rsmi *ROCmSMI) GatherDetailedInfo() ([]AMDGPUInfo, error) {
 	return rsmi.gatherDetailedInfo()
@@ -94,34 +90,6 @@ func (rsmi *ROCmSMI) gatherModel() ([]string, error) {
 	}
 
 	return models, nil
-}
-
-func (rsmi *ROCmSMI) gatherUsage() ([]float64, error) {
-	var data map[string]interface{}
-	var usageList []float64
-
-	if err := json.Unmarshal(rsmi.data, &data); err != nil {
-		return nil, err
-	}
-
-	// 解析JSON结构获取GPU使用率
-	for key, value := range data {
-		if strings.HasPrefix(key, "card") {
-			if cardData, ok := value.(map[string]interface{}); ok {
-				usage := 0.0
-				if utilizationData, exists := cardData["GPU use (%)"]; exists {
-					if utilizationStr, ok := utilizationData.(string); ok {
-						if parsed, err := parseAMDPercentage(utilizationStr); err == nil {
-							usage = parsed
-						}
-					}
-				}
-				usageList = append(usageList, usage)
-			}
-		}
-	}
-
-	return usageList, nil
 }
 
 func (rsmi *ROCmSMI) gatherDetailedInfo() ([]AMDGPUInfo, error) {
