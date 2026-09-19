@@ -1,25 +1,15 @@
 package task
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
-	"io"
-	"log"
 	"net"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/komari-probe/komari-probe-agent/internal/config"
-	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
-	"github.com/komari-probe/komari-probe-agent/internal/protocol/transport"
-	v2 "github.com/komari-probe/komari-probe-agent/internal/protocol/v2"
 	ping "github.com/prometheus-community/pro-bing"
 )
-
-var flags = config.GlobalConfig
 
 // resolveIP 解析域名到 IP 地址，排除 DNS 查询时间
 func resolveIP(target string) (string, error) {
@@ -141,18 +131,15 @@ func httpPing(target string, timeout time.Duration) (int64, error) {
 	return latency, errors.New("http status not ok")
 }
 
-func NewPingTask(conn *connectivity.SafeConn, taskID uint, pingType, pingTarget string) {
-	if taskID == 0 {
-		log.Printf("Invalid task ID: %d", taskID)
-		return
-	}
-	var err error = nil
-	var latency int64
-	pingResult := -1
-	timeout := 3 * time.Second           // 默认超时时间
-	const highLatencyThreshold = 1000    // ms 阈值
-	const retryDropThresholdTcping = 800 // ms 重试中延迟降低超过此值则基本认为发生重传
-	// 800ms = SYN/SYN-ACK 首次超时重传 1000ms - 防误判容许 200ms 延迟抖动
+// Probe measures the latency of a single target and returns -1 when probing
+// fails. Sending the result to the panel is the reporter's responsibility.
+func Probe(pingType, pingTarget string) (int, error) {
+	const (
+		timeout                 = 3 * time.Second
+		highLatencyThreshold    = int64(1000)
+		retryDropThresholdTCP   = int64(800)
+		highLatencyRetryAttempt = 3
+	)
 
 	measure := func() (int64, error) {
 		switch pingType {
@@ -166,96 +153,28 @@ func NewPingTask(conn *connectivity.SafeConn, taskID uint, pingType, pingTarget 
 			return -1, errors.New("unsupported ping type")
 		}
 	}
-	PingHighLatencyRetries := 3
-	// 首次测量
-	if latency, err = measure(); err == nil {
-		firstLatency := latency
-		if latency > int64(highLatencyThreshold) && PingHighLatencyRetries > 0 {
-			attempts := PingHighLatencyRetries
-			for i := 0; i < attempts; i++ {
-				if second, err2 := measure(); err2 == nil {
-					if second <= int64(highLatencyThreshold) {
-						if pingType == "tcp" && firstLatency-second > int64(retryDropThresholdTcping) {
-							err = errors.New("suspicious retransmission detected in tcp handshake")
-							break
-						}
-						latency = second
-						break
-					}
-					if i == attempts-1 { // 最后一次仍高
-						err = errors.New("latency remains high after retries")
-					}
-				} else {
-					err = err2
-					break
-				}
-			}
-		}
+
+	latency, err := measure()
+	if err != nil {
+		return -1, err
+	}
+	if latency <= highLatencyThreshold {
+		return int(latency), nil
 	}
 
-	if err != nil {
-		log.Printf("Ping task %d failed: %v", taskID, err)
-		pingResult = -1 // 如果有错误，设置结果为 -1
-	} else {
-		pingResult = int(latency)
-	}
-	finishedAt := time.Now()
-	wsPayload := v2.BuildPingResultPayload(taskID, pingType, pingResult, finishedAt)
-	// https://github.com/komari-monitor/komari/commit/eb87a4fc330b7d1c407fa4ff70177615a4f50a1f
-	// -1 代表丢包，服务端计算
-	//if pingResult == -1 {
-	//	return
-	//}
-	if conn == nil {
-		if err := postV2RPC(wsPayload); err != nil {
-			log.Printf("Failed to upload ping result over POST: %v", err)
+	firstLatency := latency
+	for attempt := 0; attempt < highLatencyRetryAttempt; attempt++ {
+		second, retryErr := measure()
+		if retryErr != nil {
+			return -1, retryErr
 		}
-		return
-	}
-	if err := conn.WriteJSON(wsPayload); err != nil {
-		log.Printf("Failed to write JSON to WebSocket: %v", err)
-	}
-
-}
-
-func postV2RPC(payload interface{}) error {
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-	endpoint := strings.TrimSuffix(flags.Endpoint, "/") + "/api/clients/v2/rpc?token=" + flags.Token
-	compressed := false
-	if !flags.DisableCompression {
-		if gz, err := transport.GzipBytes(body); err == nil {
-			body = gz
-			compressed = true
+		if second > highLatencyThreshold {
+			continue
 		}
-	}
-	req, err := http.NewRequest("POST", endpoint, bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if compressed {
-		req.Header.Set("Content-Encoding", "gzip")
-	}
-	client := connectivity.GetHTTPClientWithPreference(30*time.Second, flags.PreferIPVersion, flags.IgnoreUnsafeCert)
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return &v2.HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status, Body: string(respBody)}
-	}
-	if len(bytes.TrimSpace(respBody)) > 0 {
-		if _, err := v2.ParseResponse(respBody); err != nil {
-			return err
+		if pingType == "tcp" && firstLatency-second > retryDropThresholdTCP {
+			return -1, errors.New("suspicious retransmission detected in tcp handshake")
 		}
+		return int(second), nil
 	}
-	return nil
+	return -1, errors.New("latency remains high after retries")
 }
