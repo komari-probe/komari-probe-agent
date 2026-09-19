@@ -1,73 +1,27 @@
-# Requires: PowerShell 5+, Go toolchain, git (optional for version)
+# Requires: goreleaser (https://goreleaser.com/install/)
 
-# Colors
-$Red = 'Red'
-$Green = 'Green'
-$White = 'White'
-
-# OS/ARCH matrix
-$osList = @('windows', 'linux', 'darwin', 'freebsd')
-$archList = @('amd64', 'arm64', '386', 'arm', 'loong64')
-
-# Ensure build directory
-$buildDir = Join-Path -Path (Get-Location) -ChildPath 'build'
-New-Item -ItemType Directory -Force -Path $buildDir | Out-Null
-
-# Detect version from git tags or fallback to dev
-$version = (git describe --tags --abbrev=0 2>$null)
-if (-not $version) { $version = 'dev' }
-$version = $version.Trim()
-
-# Check go exists
-if (-not (Get-Command go -ErrorAction SilentlyContinue)) {
-    Write-Host 'Go toolchain not found in PATH. Please install Go and try again.' -ForegroundColor $Red
+if (-not (Get-Command goreleaser -ErrorAction SilentlyContinue)) {
+    Write-Host "goreleaser not found. Install it: https://goreleaser.com/install/" -ForegroundColor Red
     exit 1
 }
 
-$failedBuilds = @()
+& goreleaser release --snapshot --clean
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
 
-foreach ($goos in $osList) {
-    foreach ($goarch in $archList) {
-        # Skip loong64 outside Linux and existing unsupported combinations.
-        if ((($goos -eq 'windows') -and ($goarch -eq 'arm')) -or
-            (($goos -eq 'darwin') -and (($goarch -eq '386') -or ($goarch -eq 'arm'))) -or
-            (($goos -ne 'linux') -and ($goarch -eq 'loong64'))) {
-            continue
-        }
+$buildDir = Join-Path -Path (Get-Location) -ChildPath 'build'
 
-        Write-Host "Building for $goos/$goarch..." -ForegroundColor $White
-
-        $binaryName = "komari-agent-$goos-$goarch"
-        if ($goos -eq 'windows') { $binaryName = "$binaryName.exe" }
-        $outPath = Join-Path $buildDir $binaryName
-
-        # Set env per invocation
-        $env:GOOS = $goos
-        $env:GOARCH = $goarch
-        $env:CGO_ENABLED = '0'
-
-        & go build -trimpath -ldflags "-X github.com/komari-probe/komari-probe-agent/internal/version.CurrentVersion=$version" -o "$outPath" ./cmd/komari-agent
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "Failed to build for $goos/$goarch" -ForegroundColor $Red
-            $failedBuilds += "$goos/$goarch"
-        }
-        else {
-            Write-Host "Successfully built $binaryName" -ForegroundColor $Green
-        }
-
-        # Clear env to avoid affecting subsequent shells (optional)
-        Remove-Item Env:GOOS -ErrorAction SilentlyContinue
-        Remove-Item Env:GOARCH -ErrorAction SilentlyContinue
-        Remove-Item Env:CGO_ENABLED -ErrorAction SilentlyContinue
+# goreleaser lays each target's binary out under build\<id>_<goos>_<goarch>[_<variant>]\;
+# flatten to the komari-agent-<os>-<arch>[.exe] naming the rest of the project expects.
+$artifacts = Get-Content (Join-Path $buildDir 'artifacts.json') -Raw | ConvertFrom-Json
+foreach ($a in $artifacts) {
+    if ($a.name -like 'komari-agent-*') {
+        Copy-Item -Path $a.path -Destination (Join-Path $buildDir $a.name) -Force
     }
 }
 
-if ($failedBuilds.Count -gt 0) {
-    Write-Host "`nThe following builds failed:" -ForegroundColor $Red
-    foreach ($b in $failedBuilds) { Write-Host "- $b" -ForegroundColor $Red }
-}
-else {
-    Write-Host "`nAll builds completed successfully." -ForegroundColor $Green
-}
+Get-ChildItem -Path $buildDir -Directory -Filter 'komari-agent_*' | Remove-Item -Recurse -Force
+Remove-Item -Path (Join-Path $buildDir 'artifacts.json'), (Join-Path $buildDir 'config.yaml'), (Join-Path $buildDir 'metadata.json') -ErrorAction SilentlyContinue
 
-Write-Host "`nBinaries are in the ./build directory." -ForegroundColor $White
+Write-Host "`nBinaries are in the .\build directory." -ForegroundColor White

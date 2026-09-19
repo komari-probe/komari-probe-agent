@@ -1,0 +1,54 @@
+version: 2
+
+project_name: komari-agent
+
+dist: build
+
+builds:
+  - id: komari-agent
+    main: ./cmd/komari-agent
+    binary: komari-agent
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -X github.com/komari-probe/komari-probe-agent/internal/version.CurrentVersion={{ .Version }}
+    goos:
+      - windows
+      - linux
+      - darwin
+      - freebsd
+    goarch:
+      - amd64
+      - arm64
+      - "386"
+      - arm
+      - loong64
+    ignore:
+      - goos: windows
+        goarch: arm
+      - goos: darwin
+        goarch: "386"
+      - goos: darwin
+        goarch: arm
+      - goos: windows
+        goarch: loong64
+      - goos: darwin
+        goarch: loong64
+      - goos: freebsd
+        goarch: loong64
+
+archives:
+  - id: komari-agent
+    ids:
+      - komari-agent
+    formats:
+      - binary
+    name_template: "komari-agent-{{ .Os }}-{{ .Arch }}"
+
+checksum:
+  disable: true
+
+release:
+  disable: true
