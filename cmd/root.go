@@ -18,7 +18,7 @@ import (
 	"github.com/komari-probe/komari-probe-agent/internal/collector/netstatic"
 	"github.com/komari-probe/komari-probe-agent/internal/discovery"
 	"github.com/komari-probe/komari-probe-agent/internal/reporter"
-	"github.com/komari-probe/komari-probe-agent/internal/update"
+	"github.com/komari-probe/komari-probe-agent/internal/version"
 	"github.com/komari-probe/komari-probe-agent/pkg/dnsresolver"
 	"github.com/spf13/cobra"
 
@@ -59,8 +59,7 @@ var RootCmd = &cobra.Command{
 
 		collector.InitNetstatic()
 
-		log.Println("Komari Agent", update.CurrentVersion)
-		log.Println("Github Repo:", update.Repo)
+		log.Println("Komari Agent", version.CurrentVersion)
 
 		// 设置 DNS 解析行为
 		if flags.CustomDNS != "" {
@@ -93,14 +92,6 @@ var RootCmd = &cobra.Command{
 		if flags.IgnoreUnsafeCert {
 			http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 		}
-		// 自动更新
-		if !flags.DisableAutoUpdate {
-			err := update.CheckAndUpdate()
-			if err != nil {
-				log.Println("[ERROR]", err)
-			}
-			go update.DoUpdateWorks()
-		}
 		go reporter.DoUploadBasicInfoWorks()
 		for {
 			reporter.UpdateBasicInfo()
@@ -111,12 +102,6 @@ var RootCmd = &cobra.Command{
 
 func Execute() {
 	for i, arg := range os.Args {
-		if arg == "-autoUpdate" || arg == "--autoUpdate" {
-			log.Println("WARNING: The -autoUpdate flag is deprecated in version 0.0.9 and later. Use --disable-auto-update to configure auto-update behavior.")
-			// 从参数列表中移除该参数，防止cobra解析错误
-			os.Args = append(os.Args[:i], os.Args[i+1:]...)
-			break
-		}
 		if arg == "-memory-mode-available" || arg == "--memory-mode-available" {
 			//flags.MemoryIncludeCache = true
 			log.Println("WARNING: The --memory-mode-available flag is deprecated in version 1.0.70 and later. Use --memory-include-cache to report memory usage including cache/buffer.")
@@ -136,7 +121,6 @@ func init() {
 	RootCmd.PersistentFlags().StringVarP(&flags.Endpoint, "endpoint", "e", "", "API endpoint")
 	//RootCmd.MarkPersistentFlagRequired("endpoint")
 	RootCmd.PersistentFlags().StringVar(&flags.AutoDiscoveryKey, "auto-discovery", "", "Auto discovery key for the agent")
-	RootCmd.PersistentFlags().BoolVar(&flags.DisableAutoUpdate, "disable-auto-update", false, "Disable automatic updates")
 	//RootCmd.PersistentFlags().BoolVar(&flags.MemoryModeAvailable, "memory-mode-available", false, "[deprecated]Report memory as available instead of used.")
 	RootCmd.PersistentFlags().Float64VarP(&flags.Interval, "interval", "i", 3.0, "Interval in seconds")
 	RootCmd.PersistentFlags().BoolVarP(&flags.IgnoreUnsafeCert, "ignore-unsafe-cert", "u", false, "Ignore unsafe certificate errors")
