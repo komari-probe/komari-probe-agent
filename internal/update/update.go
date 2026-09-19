@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/blang/semver"
-	"github.com/komari-monitor/komari-agent/dnsresolver"
+	"github.com/komari-monitor/komari-agent/pkg/dnsresolver"
 	"github.com/rhysd/go-github-selfupdate/selfupdate"
 )
 

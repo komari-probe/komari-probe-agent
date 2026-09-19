@@ -15,12 +15,12 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/komari-monitor/komari-agent/dnsresolver"
-	"github.com/komari-monitor/komari-agent/monitoring"
-	v2 "github.com/komari-monitor/komari-agent/protocol/v2"
+	"github.com/komari-monitor/komari-agent/pkg/dnsresolver"
+	"github.com/komari-monitor/komari-agent/internal/monitoring"
+	v2 "github.com/komari-monitor/komari-agent/internal/protocol/v2"
 	"github.com/komari-monitor/komari-agent/terminal"
-	"github.com/komari-monitor/komari-agent/utils"
-	"github.com/komari-monitor/komari-agent/ws"
+	"github.com/komari-monitor/komari-agent/pkg/utils"
+	"github.com/komari-monitor/komari-agent/pkg/ws"
 )
 
 var (

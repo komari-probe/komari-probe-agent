@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/komari-monitor/komari-agent/dnsresolver"
-	monitoring "github.com/komari-monitor/komari-agent/monitoring/unit"
-	"github.com/komari-monitor/komari-agent/protocol/transport"
-	v2 "github.com/komari-monitor/komari-agent/protocol/v2"
-	"github.com/komari-monitor/komari-agent/update"
+	"github.com/komari-monitor/komari-agent/pkg/dnsresolver"
+	monitoring "github.com/komari-monitor/komari-agent/internal/monitoring/unit"
+	"github.com/komari-monitor/komari-agent/internal/protocol/transport"
+	v2 "github.com/komari-monitor/komari-agent/internal/protocol/v2"
+	"github.com/komari-monitor/komari-agent/internal/update"
 
 	pkg_flags "github.com/komari-monitor/komari-agent/cmd/flags"
 )

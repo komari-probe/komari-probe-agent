@@ -14,11 +14,11 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/komari-monitor/komari-agent/dnsresolver"
-	"github.com/komari-monitor/komari-agent/monitoring/netstatic"
-	monitoring "github.com/komari-monitor/komari-agent/monitoring/unit"
-	"github.com/komari-monitor/komari-agent/server"
-	"github.com/komari-monitor/komari-agent/update"
+	"github.com/komari-monitor/komari-agent/pkg/dnsresolver"
+	"github.com/komari-monitor/komari-agent/internal/monitoring/netstatic"
+	monitoring "github.com/komari-monitor/komari-agent/internal/monitoring/unit"
+	"github.com/komari-monitor/komari-agent/internal/server"
+	"github.com/komari-monitor/komari-agent/internal/update"
 	"github.com/spf13/cobra"
 
 	pkg_flags "github.com/komari-monitor/komari-agent/cmd/flags"
