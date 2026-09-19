@@ -5,23 +5,26 @@ import (
 	"fmt"
 )
 
-type HTTPStatusError struct {
-	StatusCode int
-	Status     string
-	Body       string
+func NewNotification(method string, params any) []byte {
+	payload, _ := json.Marshal(Request{JSONRPC: Version, Method: method, Params: params})
+	return payload
 }
 
-func (e *HTTPStatusError) Error() string {
-	if e == nil {
-		return ""
+func NewRequest(id any, method string, params any) []byte {
+	payload, _ := json.Marshal(Request{JSONRPC: Version, Method: method, Params: params, ID: id})
+	return payload
+}
+
+func BindParams(raw any, target any) error {
+	payload, err := json.Marshal(raw)
+	if err != nil {
+		return err
 	}
-	if e.Body != "" {
-		return fmt.Sprintf("status code: %d,%s", e.StatusCode, e.Body)
-	}
-	if e.Status != "" {
-		return e.Status
-	}
-	return fmt.Sprintf("status code: %d", e.StatusCode)
+	return json.Unmarshal(payload, target)
+}
+
+func BindResult(raw any, target any) error {
+	return BindParams(raw, target)
 }
 
 func ParseResponse(body []byte) (*Response, error) {
@@ -39,9 +42,9 @@ func ParseResponse(body []byte) (*Response, error) {
 }
 
 func bodySnippet(body []byte) string {
-	const max = 120
-	if len(body) > max {
-		body = body[:max]
+	const maxSnippetLength = 120
+	if len(body) > maxSnippetLength {
+		body = body[:maxSnippetLength]
 	}
 	return fmt.Sprintf("%q", string(body))
 }

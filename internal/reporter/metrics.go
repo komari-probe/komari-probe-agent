@@ -16,7 +16,7 @@ type report struct {
 	Disk        usageReport       `json:"disk"`
 	Network     networkReport     `json:"network"`
 	Connections connectionsReport `json:"connections"`
-	GPU         interface{}       `json:"gpu,omitempty"`
+	GPU         any               `json:"gpu,omitempty"`
 	Uptime      uint64            `json:"uptime"`
 	Process     int               `json:"process"`
 	Message     string            `json:"message"`

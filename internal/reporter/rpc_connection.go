@@ -12,7 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
-	v2 "github.com/komari-probe/komari-probe-agent/internal/protocol/v2"
+	v2 "github.com/komari-probe/komari-probe-agent/internal/rpc/v2"
 	"github.com/komari-probe/komari-probe-agent/pkg/idna"
 )
 
@@ -92,7 +92,7 @@ func EstablishWebSocketConnection() {
 			}
 			nextReportAt = time.Now().Add(reportInterval)
 
-			data := v2.BuildReportPayload(GenerateReport())
+			data := buildReportPayload(GenerateReport())
 			err = sendRPCPayload(conn, data)
 			if err != nil {
 				log.Println("Failed to send WebSocket message:", err)
@@ -149,7 +149,7 @@ func runPostFallback(websocketEndpoint string, interval float64) (*connectivity.
 		case <-reportTicker.C:
 			reportID := fmt.Sprintf("report-%d", time.Now().UnixNano())
 			ackIDs := snapshotV2AckEventIDs()
-			resp, err := postV2Request(v2.BuildReportRequest(reportID, GenerateReport(), ackIDs))
+			resp, err := postV2Request(buildReportRequest(reportID, GenerateReport(), ackIDs))
 			if err != nil {
 				log.Println("Failed to POST v2 report:", err)
 				continue
@@ -175,7 +175,7 @@ func runV2PullLoop(ctx context.Context) {
 		}
 		pullID := fmt.Sprintf("pull-%d", time.Now().UnixNano())
 		ackIDs := snapshotV2AckEventIDs()
-		payload := v2.NewRequest(pullID, v2.MethodAgentPull, map[string]interface{}{
+		payload := v2.NewRequest(pullID, v2.MethodAgentPull, map[string]any{
 			"capabilities":  []string{"ping", "message", "event"},
 			"ack_event_ids": ackIDs,
 		})
@@ -308,7 +308,7 @@ func connectWebSocket(websocketEndpoint string) (*connectivity.SafeConn, error) 
 	conn, resp, err := dialer.Dial(websocketEndpoint, nil)
 	if err != nil {
 		if resp != nil && resp.StatusCode != 101 {
-			return nil, &v2.HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status}
+			return nil, &HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status}
 		}
 		return nil, err
 	}
@@ -338,7 +338,7 @@ func handleWebSocketMessages(conn *connectivity.SafeConn, done chan<- struct{}) 
 	}
 }
 
-func processV2Event(conn *connectivity.SafeConn, method string, params interface{}, eventID string) bool {
+func processV2Event(conn *connectivity.SafeConn, method string, params any, eventID string) bool {
 	if !markV2EventSeen(eventID) {
 		return true
 	}

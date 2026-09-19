@@ -57,7 +57,7 @@ func (conn *SafeConn) WriteMessage(messageType int, data []byte) error {
 	return conn.conn.WriteMessage(messageType, data)
 }
 
-func (conn *SafeConn) WriteJSON(value interface{}) error {
+func (conn *SafeConn) WriteJSON(value any) error {
 	conn.mu.Lock()
 	defer conn.mu.Unlock()
 	return conn.conn.WriteJSON(value)
@@ -73,7 +73,7 @@ func (conn *SafeConn) ReadMessage() (int, []byte, error) {
 	return conn.conn.ReadMessage()
 }
 
-func (conn *SafeConn) ReadJSON(value interface{}) error {
+func (conn *SafeConn) ReadJSON(value any) error {
 	return conn.conn.ReadJSON(value)
 }
 
