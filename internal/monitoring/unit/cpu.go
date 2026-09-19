@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"strings"
 
-	pkg_flags "github.com/komari-monitor/komari-agent/cmd/flags"
+	pkg_flags "github.com/komari-probe/komari-probe-agent/cmd/flags"
 	"github.com/shirou/gopsutil/v4/cpu"
 )
 

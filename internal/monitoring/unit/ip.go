@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/komari-monitor/komari-agent/pkg/dnsresolver"
+	"github.com/komari-probe/komari-probe-agent/pkg/dnsresolver"
 )
 
 var (

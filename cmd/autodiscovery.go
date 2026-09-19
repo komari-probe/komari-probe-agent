@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/komari-monitor/komari-agent/pkg/dnsresolver"
-	"github.com/komari-monitor/komari-agent/pkg/idna"
+	"github.com/komari-probe/komari-probe-agent/pkg/dnsresolver"
+	"github.com/komari-probe/komari-probe-agent/pkg/idna"
 )
 
 // AutoDiscoveryConfig 自动发现配置结构体

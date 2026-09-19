@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	v2 "github.com/komari-monitor/komari-agent/internal/protocol/v2"
+	v2 "github.com/komari-probe/komari-probe-agent/internal/protocol/v2"
 )
 
 type httpStatusError struct {

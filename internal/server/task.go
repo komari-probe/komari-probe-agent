@@ -16,9 +16,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/komari-monitor/komari-agent/pkg/dnsresolver"
-	v2 "github.com/komari-monitor/komari-agent/internal/protocol/v2"
-	"github.com/komari-monitor/komari-agent/pkg/ws"
+	"github.com/komari-probe/komari-probe-agent/pkg/dnsresolver"
+	v2 "github.com/komari-probe/komari-probe-agent/internal/protocol/v2"
+	"github.com/komari-probe/komari-probe-agent/pkg/ws"
 	ping "github.com/prometheus-community/pro-bing"
 )
 
