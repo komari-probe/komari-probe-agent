@@ -2,6 +2,7 @@ __debug*
 __pycache__/
 agent.json
 .vscode/
+.idea/
 komari-agent.exe
 komari-agent
 .komari-agent.exe.old
