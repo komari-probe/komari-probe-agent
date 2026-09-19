@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/komari-monitor/komari-agent/pkg/dnsresolver"
-	"github.com/komari-monitor/komari-agent/pkg/utils"
+	"github.com/komari-monitor/komari-agent/pkg/idna"
 )
 
 // AutoDiscoveryConfig 自动发现配置结构体
@@ -113,7 +113,7 @@ func registerWithAutoDiscovery() error {
 	}
 
 	// 转换中文域名为 ASCII 兼容编码
-	endpoint, err = utils.ConvertIDNToASCII(endpoint)
+	endpoint, err = idna.ConvertIDNToASCII(endpoint)
 	if err != nil {
 		log.Printf("Warning: Failed to convert IDN to ASCII: %v", err)
 		// 继续使用原始 endpoint，可能在某些情况下仍能工作

@@ -19,7 +19,7 @@ import (
 	"github.com/komari-monitor/komari-agent/internal/monitoring"
 	v2 "github.com/komari-monitor/komari-agent/internal/protocol/v2"
 	"github.com/komari-monitor/komari-agent/terminal"
-	"github.com/komari-monitor/komari-agent/pkg/utils"
+	"github.com/komari-monitor/komari-agent/pkg/idna"
 	"github.com/komari-monitor/komari-agent/pkg/ws"
 )
 
@@ -132,7 +132,7 @@ func EstablishWebSocketConnection() {
 func buildWebSocketEndpoint() string {
 	websocketEndpoint := strings.TrimSuffix(flags.Endpoint, "/") + "/api/clients/v2/rpc?token=" + flags.Token
 	websocketEndpoint = "ws" + strings.TrimPrefix(websocketEndpoint, "http")
-	if convertedEndpoint, err := utils.ConvertIDNToASCII(websocketEndpoint); err == nil {
+	if convertedEndpoint, err := idna.ConvertIDNToASCII(websocketEndpoint); err == nil {
 		return convertedEndpoint
 	} else {
 		log.Printf("Warning: Failed to convert WebSocket IDN to ASCII: %v", err)
@@ -428,7 +428,7 @@ func establishTerminalConnection(token, id, endpoint string) {
 	endpoint = "ws" + strings.TrimPrefix(endpoint, "http")
 
 	// 转换中文域名为 ASCII 兼容编码
-	if convertedEndpoint, err := utils.ConvertIDNToASCII(endpoint); err == nil {
+	if convertedEndpoint, err := idna.ConvertIDNToASCII(endpoint); err == nil {
 		endpoint = convertedEndpoint
 	} else {
 		log.Printf("Warning: Failed to convert Terminal WebSocket IDN to ASCII: %v", err)
