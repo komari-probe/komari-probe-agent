@@ -14,9 +14,12 @@ import (
 	"time"
 
 	"github.com/blang/semver"
+	pkg_flags "github.com/komari-probe/komari-probe-agent/internal/config"
 	"github.com/komari-probe/komari-probe-agent/pkg/dnsresolver"
 	"github.com/rhysd/go-github-selfupdate/selfupdate"
 )
+
+var flags = pkg_flags.GlobalConfig
 
 var (
 	CurrentVersion string = "0.0.1"
@@ -320,7 +323,7 @@ func checkAndUpdateSnapshot(updater *selfupdate.Updater) error {
 func CheckAndUpdate() error {
 	log.Println("Checking update...")
 
-	http.DefaultClient = dnsresolver.GetHTTPClient(60 * time.Second)
+	http.DefaultClient = dnsresolver.GetHTTPClient(60*time.Second, flags.IgnoreUnsafeCert)
 	updater, err := selfupdate.NewUpdater(selfupdate.Config{})
 	if err != nil {
 		return fmt.Errorf("failed to create updater: %v", err)

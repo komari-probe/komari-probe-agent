@@ -227,7 +227,7 @@ func postV2RequestContext(ctx context.Context, payload []byte) (*v2.Response, er
 	if compressed {
 		req.Header.Set("Content-Encoding", "gzip")
 	}
-	client := dnsresolver.GetHTTPClientWithPreference(35*time.Second, flags.PreferIPVersion)
+	client := dnsresolver.GetHTTPClientWithPreference(35*time.Second, flags.PreferIPVersion, flags.IgnoreUnsafeCert)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err

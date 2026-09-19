@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	pkg_flags "github.com/komari-probe/komari-probe-agent/cmd/flags"
+	pkg_flags "github.com/komari-probe/komari-probe-agent/internal/config"
 	unit "github.com/komari-probe/komari-probe-agent/internal/monitoring/unit"
 )
 

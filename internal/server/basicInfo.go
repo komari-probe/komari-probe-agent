@@ -14,7 +14,7 @@ import (
 	"github.com/komari-probe/komari-probe-agent/internal/update"
 	"github.com/komari-probe/komari-probe-agent/pkg/dnsresolver"
 
-	pkg_flags "github.com/komari-probe/komari-probe-agent/cmd/flags"
+	pkg_flags "github.com/komari-probe/komari-probe-agent/internal/config"
 )
 
 var flags = pkg_flags.GlobalConfig
@@ -88,7 +88,7 @@ func tryUploadDataWithProtocol(data map[string]interface{}) error {
 		req.Header.Set("Content-Encoding", "gzip")
 	}
 
-	client := dnsresolver.GetHTTPClientWithPreference(30*time.Second, flags.PreferIPVersion)
+	client := dnsresolver.GetHTTPClientWithPreference(30*time.Second, flags.PreferIPVersion, flags.IgnoreUnsafeCert)
 
 	resp, err := client.Do(req)
 	if err != nil {

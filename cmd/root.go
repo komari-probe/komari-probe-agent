@@ -14,6 +14,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/komari-probe/komari-probe-agent/internal/discovery"
 	"github.com/komari-probe/komari-probe-agent/internal/monitoring/netstatic"
 	monitoring "github.com/komari-probe/komari-probe-agent/internal/monitoring/unit"
 	"github.com/komari-probe/komari-probe-agent/internal/server"
@@ -21,7 +22,7 @@ import (
 	"github.com/komari-probe/komari-probe-agent/pkg/dnsresolver"
 	"github.com/spf13/cobra"
 
-	pkg_flags "github.com/komari-probe/komari-probe-agent/cmd/flags"
+	pkg_flags "github.com/komari-probe/komari-probe-agent/internal/config"
 )
 
 var flags = pkg_flags.GlobalConfig
@@ -56,22 +57,7 @@ var RootCmd = &cobra.Command{
 			os.Exit(0)
 		}()
 
-		if flags.MonthRotate != 0 {
-			err := netstatic.StartOrContinue()
-			if err != nil {
-				log.Println("Failed to start netstatic monitoring:", err)
-			}
-			nics, err := monitoring.InterfaceList()
-			if err != nil {
-				log.Println("Failed to get interface list for netstatic:", err)
-			}
-			err = netstatic.SetNewConfig(netstatic.NetStaticConfig{
-				Nics: nics,
-			})
-			if err != nil {
-				log.Println("Failed to set netstatic config:", err)
-			}
-		}
+		monitoring.InitNetstatic()
 
 		log.Println("Komari Agent", update.CurrentVersion)
 		log.Println("Github Repo:", update.Repo)
@@ -87,7 +73,7 @@ var RootCmd = &cobra.Command{
 
 		// Auto discovery
 		if flags.AutoDiscoveryKey != "" {
-			err := handleAutoDiscovery()
+			err := discovery.HandleAutoDiscovery()
 			if err != nil {
 				return fmt.Errorf("auto-discovery failed: %w", err)
 			}

@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	pkg_flags "github.com/komari-probe/komari-probe-agent/cmd/flags"
 	"github.com/shirou/gopsutil/v4/mem"
 )
 
@@ -183,7 +182,7 @@ func CallFree() RamInfo {
 
 func Ram() RamInfo {
 	// Use global config
-	if pkg_flags.GlobalConfig.MemoryIncludeCache {
+	if flags.MemoryIncludeCache {
 		v, err := mem.VirtualMemory()
 		if err != nil {
 			return RamInfo{}
@@ -195,7 +194,7 @@ func Ram() RamInfo {
 		}
 	}
 
-	if pkg_flags.GlobalConfig.MemoryReportRawUsed {
+	if flags.MemoryReportRawUsed {
 		return GetMemHtopLike()
 	}
 

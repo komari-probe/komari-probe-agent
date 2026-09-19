@@ -237,7 +237,7 @@ func postV2RPC(payload interface{}) error {
 	if compressed {
 		req.Header.Set("Content-Encoding", "gzip")
 	}
-	client := dnsresolver.GetHTTPClientWithPreference(30*time.Second, flags.PreferIPVersion)
+	client := dnsresolver.GetHTTPClientWithPreference(30*time.Second, flags.PreferIPVersion, flags.IgnoreUnsafeCert)
 	resp, err := client.Do(req)
 	if err != nil {
 		return err

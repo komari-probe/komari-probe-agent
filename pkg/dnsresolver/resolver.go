@@ -10,11 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	pkg_flags "github.com/komari-probe/komari-probe-agent/cmd/flags"
 )
 
-var flags = pkg_flags.GlobalConfig
 var (
 	DNSServers = []string{
 		"[2606:4700:4700::1111]:53", // Cloudflare IPv6
@@ -177,28 +174,28 @@ func buildTransportWithPreferenceAndHTTP2(timeout time.Duration, tlsConfig *tls.
 	return transport
 }
 
-func GetHTTPClient(timeout time.Duration) *http.Client {
-	return getHTTPClient(timeout, "", true)
+func GetHTTPClient(timeout time.Duration, ignoreUnsafeCert bool) *http.Client {
+	return getHTTPClient(timeout, "", true, ignoreUnsafeCert)
 }
 
 // GetHTTPClientWithPreference 返回一个使用自定义解析器并按指定 IP 版本排序的 HTTP 客户端。
 // preferIPVersion 为 "4" 或 "6" 时固定优先对应地址；为空时保留自动选择逻辑。
-func GetHTTPClientWithPreference(timeout time.Duration, preferIPVersion string) *http.Client {
-	return getHTTPClient(timeout, normalizeIPVersionPreference(preferIPVersion), true)
+func GetHTTPClientWithPreference(timeout time.Duration, preferIPVersion string, ignoreUnsafeCert bool) *http.Client {
+	return getHTTPClient(timeout, normalizeIPVersionPreference(preferIPVersion), true, ignoreUnsafeCert)
 }
 
 // GetHTTPClientWithoutHTTP2 returns a client intended for long-lived binary
 // streams. Keeping those streams on HTTP/1.1 avoids proxy-specific HTTP/2
 // stream resets while leaving the control-plane clients on HTTP/2.
-func GetHTTPClientWithoutHTTP2(timeout time.Duration, preferIPVersion string) *http.Client {
-	return getHTTPClient(timeout, normalizeIPVersionPreference(preferIPVersion), false)
+func GetHTTPClientWithoutHTTP2(timeout time.Duration, preferIPVersion string, ignoreUnsafeCert bool) *http.Client {
+	return getHTTPClient(timeout, normalizeIPVersionPreference(preferIPVersion), false, ignoreUnsafeCert)
 }
 
-func getHTTPClient(timeout time.Duration, preferIPVersion string, forceHTTP2 bool) *http.Client {
+func getHTTPClient(timeout time.Duration, preferIPVersion string, forceHTTP2 bool, ignoreUnsafeCert bool) *http.Client {
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}
-	key := httpClientKey{timeout: timeout, ignoreUnsafeCert: flags.IgnoreUnsafeCert, preferIPVersion: preferIPVersion, forceHTTP2: forceHTTP2}
+	key := httpClientKey{timeout: timeout, ignoreUnsafeCert: ignoreUnsafeCert, preferIPVersion: preferIPVersion, forceHTTP2: forceHTTP2}
 	httpClientMu.Lock()
 	defer httpClientMu.Unlock()
 	if client := httpClients[key]; client != nil {
@@ -206,7 +203,7 @@ func getHTTPClient(timeout time.Duration, preferIPVersion string, forceHTTP2 boo
 	}
 	client := &http.Client{
 		Transport: buildTransportWithPreferenceAndHTTP2(timeout, &tls.Config{
-			InsecureSkipVerify: flags.IgnoreUnsafeCert,
+			InsecureSkipVerify: ignoreUnsafeCert,
 		}, preferIPVersion, forceHTTP2),
 		Timeout: timeout,
 	}
