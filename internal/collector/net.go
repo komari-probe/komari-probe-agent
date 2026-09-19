@@ -216,8 +216,8 @@ type VnstatOutput struct {
 }
 
 func (c *Collector) NetworkSpeed() (totalUp, totalDown, upSpeed, downSpeed uint64, err error) {
-	includeNics := parseNics(c.options.IncludeNics)
-	excludeNics := parseNics(c.options.ExcludeNics)
+	includeNICs := parseNICs(c.options.IncludeNICs)
+	excludeNICs := parseNICs(c.options.ExcludeNICs)
 
 	// 如果设置了月重置（非0），统计totalUp、totalDown
 	if c.options.MonthRotate != 0 {
@@ -227,7 +227,7 @@ func (c *Collector) NetworkSpeed() (totalUp, totalDown, upSpeed, downSpeed uint6
 		nicStatics, err := netstatic.GetTotalTrafficBetween(resetDay, now)
 		if err != nil {
 			// 如果netstatic失败，回退到原来的方法，并返回额外的错误信息
-			fallbackUp, fallbackDown, fallbackUpSpeed, fallbackDownSpeed, fallbackErr := getNetworkSpeedFallback(includeNics, excludeNics)
+			fallbackUp, fallbackDown, fallbackUpSpeed, fallbackDownSpeed, fallbackErr := getNetworkSpeedFallback(includeNICs, excludeNICs)
 			if fallbackErr != nil {
 				return fallbackUp, fallbackDown, fallbackUpSpeed, fallbackDownSpeed, fmt.Errorf("failed to call GetTotalTrafficBetween: %v; fallback error: %w", err, fallbackErr)
 			}
@@ -235,14 +235,14 @@ func (c *Collector) NetworkSpeed() (totalUp, totalDown, upSpeed, downSpeed uint6
 		}
 
 		for interfaceName, stats := range nicStatics {
-			if shouldInclude(interfaceName, includeNics, excludeNics) {
+			if shouldInclude(interfaceName, includeNICs, excludeNICs) {
 				totalUp += stats.Tx
 				totalDown += stats.Rx
 			}
 		}
 
 		// 对于实时速度，仍然使用网卡累计计数器差值
-		_, _, upSpeed, downSpeed, err = getNetworkSpeedFallback(includeNics, excludeNics)
+		_, _, upSpeed, downSpeed, err = getNetworkSpeedFallback(includeNICs, excludeNICs)
 		if err != nil {
 			return totalUp, totalDown, 0, 0, err
 		}
@@ -251,11 +251,11 @@ func (c *Collector) NetworkSpeed() (totalUp, totalDown, upSpeed, downSpeed uint6
 	}
 
 	// 如果没有设置月重置，使用原来的方法
-	return getNetworkSpeedFallback(includeNics, excludeNics)
+	return getNetworkSpeedFallback(includeNICs, excludeNICs)
 }
 
-func getNetworkSpeedFallback(includeNics, excludeNics map[string]struct{}) (totalUp, totalDown, upSpeed, downSpeed uint64, err error) {
-	totalUp, totalDown, err = collectNetworkTotals(includeNics, excludeNics)
+func getNetworkSpeedFallback(includeNICs, excludeNICs map[string]struct{}) (totalUp, totalDown, upSpeed, downSpeed uint64, err error) {
+	totalUp, totalDown, err = collectNetworkTotals(includeNICs, excludeNICs)
 	if err != nil {
 		return 0, 0, 0, 0, err
 	}
@@ -264,7 +264,7 @@ func getNetworkSpeedFallback(includeNics, excludeNics map[string]struct{}) (tota
 	return totalUp, totalDown, upSpeed, downSpeed, nil
 }
 
-func collectNetworkTotals(includeNics, excludeNics map[string]struct{}) (totalUp, totalDown uint64, err error) {
+func collectNetworkTotals(includeNICs, excludeNICs map[string]struct{}) (totalUp, totalDown uint64, err error) {
 	ioCounters, err := net.IOCounters(true)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to get network IO counters: %w", err)
@@ -275,7 +275,7 @@ func collectNetworkTotals(includeNics, excludeNics map[string]struct{}) (totalUp
 	}
 
 	for _, interfaceStats := range ioCounters {
-		if shouldInclude(interfaceStats.Name, includeNics, excludeNics) {
+		if shouldInclude(interfaceStats.Name, includeNICs, excludeNICs) {
 			totalUp += interfaceStats.BytesSent
 			totalDown += interfaceStats.BytesRecv
 		}
@@ -326,7 +326,7 @@ func safeCounterDelta(current, previous uint64) uint64 {
 	return 0
 }
 
-func parseNics(nics string) map[string]struct{} {
+func parseNICs(nics string) map[string]struct{} {
 	if nics == "" {
 		return nil
 	}
@@ -337,7 +337,7 @@ func parseNics(nics string) map[string]struct{} {
 	return nicSet
 }
 
-func shouldInclude(nicName string, includeNics, excludeNics map[string]struct{}) bool {
+func shouldInclude(nicName string, includeNICs, excludeNICs map[string]struct{}) bool {
 	// 默认排除回环接口
 	for loopbackName := range loopbackNames {
 		if strings.HasPrefix(nicName, loopbackName) {
@@ -346,25 +346,25 @@ func shouldInclude(nicName string, includeNics, excludeNics map[string]struct{})
 	}
 
 	// 如果定义了白名单，则只包括白名单中的接口
-	for pattern := range includeNics {
+	for pattern := range includeNICs {
 		if matched, _ := filepath.Match(pattern, nicName); matched {
 			return true
 		}
 	}
 
 	// 如果定义了黑名单，则排除黑名单中的接口
-	for pattern := range excludeNics {
+	for pattern := range excludeNICs {
 		if matched, _ := filepath.Match(pattern, nicName); matched {
 			return false
 		}
 	}
 
-	return len(includeNics) == 0 // 如果没有定义白名单，则默认包含所有非回环接口
+	return len(includeNICs) == 0 // 如果没有定义白名单，则默认包含所有非回环接口
 }
 
 func (c *Collector) InterfaceList() ([]string, error) {
-	includeNics := parseNics(c.options.IncludeNics)
-	excludeNics := parseNics(c.options.ExcludeNics)
+	includeNICs := parseNICs(c.options.IncludeNICs)
+	excludeNICs := parseNICs(c.options.ExcludeNICs)
 	interfaces := []string{}
 
 	ioCounters, err := net.IOCounters(true)
@@ -372,7 +372,7 @@ func (c *Collector) InterfaceList() ([]string, error) {
 		return nil, err
 	}
 	for _, interfaceStats := range ioCounters {
-		if shouldInclude(interfaceStats.Name, includeNics, excludeNics) {
+		if shouldInclude(interfaceStats.Name, includeNICs, excludeNICs) {
 			interfaces = append(interfaces, interfaceStats.Name)
 		}
 	}

@@ -53,7 +53,7 @@ func TestConnectionsCountCombinesProcAndFallbackErrors(t *testing.T) {
 	}
 }
 
-func TestParseNics(t *testing.T) {
+func TestParseNICs(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
@@ -93,7 +93,7 @@ func TestParseNics(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := parseNics(tt.input)
+			result := parseNICs(tt.input)
 
 			if tt.expected == nil && result != nil {
 				t.Errorf("Expected nil, got %v", result)
@@ -123,54 +123,54 @@ func TestShouldInclude(t *testing.T) {
 	tests := []struct {
 		name        string
 		nicName     string
-		includeNics map[string]struct{}
-		excludeNics map[string]struct{}
+		includeNICs map[string]struct{}
+		excludeNICs map[string]struct{}
 		expected    bool
 	}{
 		{
 			name:        "loopback interface should be excluded",
 			nicName:     "lo",
-			includeNics: nil,
-			excludeNics: nil,
+			includeNICs: nil,
+			excludeNICs: nil,
 			expected:    false,
 		},
 		{
 			name:        "docker interface should be excluded",
 			nicName:     "docker0",
-			includeNics: nil,
-			excludeNics: nil,
+			includeNICs: nil,
+			excludeNICs: nil,
 			expected:    false,
 		},
 		{
 			name:        "normal interface with no filters",
 			nicName:     "eth0",
-			includeNics: nil,
-			excludeNics: nil,
+			includeNICs: nil,
+			excludeNICs: nil,
 			expected:    true,
 		},
 		{
 			name:    "interface in include list",
 			nicName: "eth0",
-			includeNics: map[string]struct{}{
+			includeNICs: map[string]struct{}{
 				"eth0": {},
 			},
-			excludeNics: nil,
+			excludeNICs: nil,
 			expected:    true,
 		},
 		{
 			name:    "interface not in include list",
 			nicName: "wlan0",
-			includeNics: map[string]struct{}{
+			includeNICs: map[string]struct{}{
 				"eth0": {},
 			},
-			excludeNics: nil,
+			excludeNICs: nil,
 			expected:    false,
 		},
 		{
 			name:        "interface in exclude list",
 			nicName:     "eth0",
-			includeNics: nil,
-			excludeNics: map[string]struct{}{
+			includeNICs: nil,
+			excludeNICs: map[string]struct{}{
 				"eth0": {},
 			},
 			expected: false,
@@ -178,8 +178,8 @@ func TestShouldInclude(t *testing.T) {
 		{
 			name:        "interface not in exclude list",
 			nicName:     "wlan0",
-			includeNics: nil,
-			excludeNics: map[string]struct{}{
+			includeNICs: nil,
+			excludeNICs: map[string]struct{}{
 				"eth0": {},
 			},
 			expected: true,
@@ -187,17 +187,17 @@ func TestShouldInclude(t *testing.T) {
 		{
 			name:    "loopback in include list should still be excluded",
 			nicName: "lo",
-			includeNics: map[string]struct{}{
+			includeNICs: map[string]struct{}{
 				"lo": {},
 			},
-			excludeNics: nil,
+			excludeNICs: nil,
 			expected:    false,
 		},
 		{
 			name:        "interface with wildcard pattern in exclude list",
 			nicName:     "tun0",
-			includeNics: nil,
-			excludeNics: map[string]struct{}{
+			includeNICs: nil,
+			excludeNICs: map[string]struct{}{
 				"tun*": {},
 			},
 			expected: false,
@@ -206,7 +206,7 @@ func TestShouldInclude(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := shouldInclude(tt.nicName, tt.includeNics, tt.excludeNics)
+			result := shouldInclude(tt.nicName, tt.includeNICs, tt.excludeNICs)
 			if result != tt.expected {
 				t.Errorf("Expected %v, got %v", tt.expected, result)
 			}
@@ -216,10 +216,10 @@ func TestShouldInclude(t *testing.T) {
 
 func TestNetworkSpeedFallback(t *testing.T) {
 	// 测试回退方法
-	includeNics := map[string]struct{}{}
-	excludeNics := map[string]struct{}{}
+	includeNICs := map[string]struct{}{}
+	excludeNICs := map[string]struct{}{}
 
-	totalUp, totalDown, upSpeed, downSpeed, err := getNetworkSpeedFallback(includeNics, excludeNics)
+	totalUp, totalDown, upSpeed, downSpeed, err := getNetworkSpeedFallback(includeNICs, excludeNICs)
 	if err != nil {
 		t.Fatalf("getNetworkSpeedFallback failed: %v", err)
 	}
@@ -253,12 +253,12 @@ func TestNetworkSpeedWithMonthRotate(t *testing.T) {
 }
 
 func TestNetworkSpeedWithNicFilters(t *testing.T) {
-	hostCollector := New(Options{ExcludeNics: "lo,docker0"})
+	hostCollector := New(Options{ExcludeNICs: "lo,docker0"})
 	totalUp, totalDown, upSpeed, downSpeed, err := hostCollector.NetworkSpeed()
 	if err != nil {
-		t.Fatalf("NetworkSpeed with excludeNics failed: %v", err)
+		t.Fatalf("NetworkSpeed with excludeNICs failed: %v", err)
 	}
 
-	t.Logf("With excludeNics - TotalUp: %d, TotalDown: %d, UpSpeed: %d/s, DownSpeed: %d/s",
+	t.Logf("With excludeNICs - TotalUp: %d, TotalDown: %d, UpSpeed: %d/s, DownSpeed: %d/s",
 		totalUp, totalDown, upSpeed, downSpeed)
 }

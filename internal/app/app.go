@@ -45,15 +45,15 @@ func Run(cfg config.Config) error {
 	}
 
 	hostCollector := collector.New(collector.Options{
-		IncludeNics:         cfg.IncludeNics,
-		ExcludeNics:         cfg.ExcludeNics,
+		IncludeNICs:         cfg.IncludeNICs,
+		ExcludeNICs:         cfg.ExcludeNICs,
 		IncludeMountpoints:  cfg.IncludeMountpoints,
 		MonthRotate:         cfg.MonthRotate,
 		MemoryIncludeCache:  cfg.MemoryIncludeCache,
 		MemoryReportRawUsed: cfg.MemoryReportRawUsed,
-		CustomIPv4:          cfg.CustomIpv4,
-		CustomIPv6:          cfg.CustomIpv6,
-		GetIPAddrFromNIC:    cfg.GetIpAddrFromNic,
+		CustomIPv4:          cfg.CustomIPv4,
+		CustomIPv6:          cfg.CustomIPv6,
+		GetIPAddressFromNIC: cfg.GetIPAddressFromNIC,
 		HostProc:            cfg.HostProc,
 	})
 	agentReporter := reporter.New(reporter.Options{

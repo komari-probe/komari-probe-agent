@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -45,7 +46,7 @@ type NetStaticConfig struct {
 	DataPreserveDay float64  `json:"data_preserve_day"` // in days，保存最近多少天的数据，过期数据会被删除
 	DetectInterval  float64  `json:"detect_interval"`   // in seconds，采集间隔
 	SaveInterval    float64  `json:"save_interval"`     // in seconds，写入到磁盘的间隔，避免大量IO操作
-	Nics            []string `json:"nics"`              // 仅监控指定的网卡名称列表，空表示监控所有网卡
+	NICs            []string `json:"nics"`              // 仅监控指定的网卡名称列表，空表示监控所有网卡
 }
 
 type TrafficData struct {
@@ -72,10 +73,10 @@ func nowUnix() uint64 { return uint64(time.Now().Unix()) }
 
 // isNicAllowed 判断网卡是否在监控白名单内；当未配置白名单（空切片或nil）时，允许所有网卡
 func isNicAllowed(name string) bool {
-	if len(config.Nics) == 0 {
+	if len(config.NICs) == 0 {
 		return true
 	}
-	for _, n := range config.Nics {
+	for _, n := range config.NICs {
 		if n == name {
 			return true
 		}
@@ -206,7 +207,7 @@ func sampleOnceLocked() {
 	ts := nowUnix()
 	for _, io := range ios {
 		name := io.Name
-		// 仅监控指定网卡（当配置了 Nics 时）
+		// 仅监控指定网卡（当配置了 NICs 时）
 		if !isNicAllowed(name) {
 			continue
 		}
@@ -269,7 +270,9 @@ func startGoroutinesLocked() {
 				mu.Lock()
 				flushCacheLocked(uint64(t.Unix()))
 				purgeExpiredLocked()
-				_ = saveToFileLocked()
+				if err := saveToFileLocked(); err != nil {
+					log.Printf("save network traffic statistics: %v", err)
+				}
 				mu.Unlock()
 			case <-stopCh:
 				return
@@ -280,8 +283,8 @@ func startGoroutinesLocked() {
 
 // GetNetStatic 获取当前的所有流量统计数据
 func GetNetStatic() (*NetStatic, error) {
-	mu.RLock()
-	defer mu.RUnlock()
+	mu.Lock()
+	defer mu.Unlock()
 	ensureInitLocked()
 	// 合并 store + cache（cache 不合并为单点，直接以原样返回临时视图）
 	merged := NetStatic{Interfaces: map[string][]TrafficData{}, Config: configOrDefault(config)}
@@ -298,11 +301,11 @@ func GetNetStatic() (*NetStatic, error) {
 
 // StartOrContinue 开始或继续流量统计
 func StartOrContinue() error {
+	mu.Lock()
+	defer mu.Unlock()
 	if running {
 		return nil
 	}
-	mu.Lock()
-	defer mu.Unlock()
 	ensureInitLocked()
 	// 读取历史
 	if err := loadFromFileLocked(); err != nil {
@@ -356,8 +359,8 @@ func Stop() error {
 
 // GetNetStaticBetween 获取指定时间段内的流量统计数据，start和end为unix时间戳
 func GetNetStaticBetween(start, end uint64) (*NetStatic, error) {
-	mu.RLock()
-	defer mu.RUnlock()
+	mu.Lock()
+	defer mu.Unlock()
 	ensureInitLocked()
 	res := NetStatic{Interfaces: map[string][]TrafficData{}, Config: configOrDefault(config)}
 	inRange := func(ts uint64) bool { return (start == 0 || ts >= start) && (end == 0 || ts <= end) }
@@ -385,8 +388,8 @@ func GetNetStaticBetween(start, end uint64) (*NetStatic, error) {
 
 // GetTotalTraffic 获取总流量统计数据, key为网卡名称, value为对应的流量数据总和
 func GetTotalTraffic() (map[string]TrafficData, error) {
-	mu.RLock()
-	defer mu.RUnlock()
+	mu.Lock()
+	defer mu.Unlock()
 	ensureInitLocked()
 	res := map[string]TrafficData{}
 	add := func(name string, tx, rx uint64) {
@@ -416,8 +419,8 @@ func GetTotalTraffic() (map[string]TrafficData, error) {
 
 // GetTotalTrafficBetween 获取指定时间段内的总流量统计数据，start和end为unix时间戳
 func GetTotalTrafficBetween(start, end uint64) (map[string]TrafficData, error) {
-	mu.RLock()
-	defer mu.RUnlock()
+	mu.Lock()
+	defer mu.Unlock()
 	ensureInitLocked()
 	res := map[string]TrafficData{}
 	inRange := func(ts uint64) bool { return (start == 0 || ts >= start) && (end == 0 || ts <= end) }
@@ -469,12 +472,12 @@ func SetNewConfig(newCfg NetStaticConfig) error {
 	if newCfg.SaveInterval != 0 {
 		store.Config.SaveInterval = newCfg.SaveInterval
 	}
-	// Nics: nil 表示不修改；非 nil 则更新（空切片表示监控所有网卡）
-	if newCfg.Nics != nil {
+	// NICs: nil 表示不修改；非 nil 则更新（空切片表示监控所有网卡）
+	if newCfg.NICs != nil {
 		// 做一份拷贝以避免外部切片后续修改影响内部配置
-		tmp := make([]string, len(newCfg.Nics))
-		copy(tmp, newCfg.Nics)
-		store.Config.Nics = tmp
+		tmp := make([]string, len(newCfg.NICs))
+		copy(tmp, newCfg.NICs)
+		store.Config.NICs = tmp
 	}
 	// 更新生效配置
 	cfg := configOrDefault(store.Config)
@@ -500,9 +503,9 @@ func SetNewConfig(newCfg NetStaticConfig) error {
 		startGoroutinesLocked()
 
 		// 当配置了指定网卡白名单时，清理不在白名单内的缓存与上次计数，避免无用数据积累
-		if len(cfg.Nics) > 0 {
-			allowed := make(map[string]struct{}, len(cfg.Nics))
-			for _, n := range cfg.Nics {
+		if len(cfg.NICs) > 0 {
+			allowed := make(map[string]struct{}, len(cfg.NICs))
+			for _, n := range cfg.NICs {
 				allowed[n] = struct{}{}
 			}
 			for name := range lastCounters {
@@ -517,11 +520,9 @@ func SetNewConfig(newCfg NetStaticConfig) error {
 			}
 		}
 	}
-	// 立即写盘
-	_ = saveToFileLocked()
-	// 同时做一次过期清理
+	// 清理后立即持久化新的有效配置和数据。
 	purgeExpiredLocked()
-	return nil
+	return saveToFileLocked()
 }
 
 func ForceReplaceRecord(rec map[string][]TrafficData) error {

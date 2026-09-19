@@ -109,10 +109,10 @@ func applyCLIOverrides(cmd *cobra.Command, cliValues config.Config, dst *config.
 		dst.InfoReportInterval = cliValues.InfoReportInterval
 	}
 	if flagChanged(cmd, "include-nics") {
-		dst.IncludeNics = cliValues.IncludeNics
+		dst.IncludeNICs = cliValues.IncludeNICs
 	}
 	if flagChanged(cmd, "exclude-nics") {
-		dst.ExcludeNics = cliValues.ExcludeNics
+		dst.ExcludeNICs = cliValues.ExcludeNICs
 	}
 	if flagChanged(cmd, "include-mountpoint") {
 		dst.IncludeMountpoints = cliValues.IncludeMountpoints
@@ -133,13 +133,13 @@ func applyCLIOverrides(cmd *cobra.Command, cliValues config.Config, dst *config.
 		dst.EnableGPU = cliValues.EnableGPU
 	}
 	if flagChanged(cmd, "custom-ipv4") {
-		dst.CustomIpv4 = cliValues.CustomIpv4
+		dst.CustomIPv4 = cliValues.CustomIPv4
 	}
 	if flagChanged(cmd, "custom-ipv6") {
-		dst.CustomIpv6 = cliValues.CustomIpv6
+		dst.CustomIPv6 = cliValues.CustomIPv6
 	}
 	if flagChanged(cmd, "get-ip-addr-from-nic") {
-		dst.GetIpAddrFromNic = cliValues.GetIpAddrFromNic
+		dst.GetIPAddressFromNIC = cliValues.GetIPAddressFromNIC
 	}
 	if flagChanged(cmd, "disable-compression") {
 		dst.DisableCompression = cliValues.DisableCompression
@@ -163,17 +163,17 @@ func bindPersistentFlags(command *cobra.Command, cfg *config.Config) {
 	command.PersistentFlags().IntVarP(&cfg.MaxRetries, "max-retries", "r", defaults.MaxRetries, "Maximum number of retries")
 	command.PersistentFlags().IntVarP(&cfg.ReconnectInterval, "reconnect-interval", "c", defaults.ReconnectInterval, "Reconnect interval in seconds")
 	command.PersistentFlags().IntVar(&cfg.InfoReportInterval, "info-report-interval", defaults.InfoReportInterval, "Interval in minutes for reporting basic info")
-	command.PersistentFlags().StringVar(&cfg.IncludeNics, "include-nics", "", "Comma-separated list of network interfaces to include")
-	command.PersistentFlags().StringVar(&cfg.ExcludeNics, "exclude-nics", "", "Comma-separated list of network interfaces to exclude")
+	command.PersistentFlags().StringVar(&cfg.IncludeNICs, "include-nics", "", "Comma-separated list of network interfaces to include")
+	command.PersistentFlags().StringVar(&cfg.ExcludeNICs, "exclude-nics", "", "Comma-separated list of network interfaces to exclude")
 	command.PersistentFlags().StringVar(&cfg.IncludeMountpoints, "include-mountpoint", "", "Semicolon-separated list of mount points to include for disk statistics")
 	command.PersistentFlags().IntVar(&cfg.MonthRotate, "month-rotate", 0, "Month reset for network statistics (0 to disable)")
 	command.PersistentFlags().BoolVar(&cfg.MemoryIncludeCache, "memory-include-cache", false, "Include cache/buffer in memory usage")
 	command.PersistentFlags().BoolVar(&cfg.MemoryReportRawUsed, "memory-exclude-bcf", false, "Use \"raminfo.Used = v.Total - v.Free - v.Buffers - v.Cached\" calculation for memory usage")
 	command.PersistentFlags().StringVar(&cfg.CustomDNS, "custom-dns", "", "Custom DNS server to use (e.g. 8.8.8.8, 114.114.114.114). By default, the program uses the system DNS resolver.")
 	command.PersistentFlags().BoolVar(&cfg.EnableGPU, "gpu", false, "Enable detailed GPU monitoring (usage, memory, multi-GPU support)")
-	command.PersistentFlags().StringVar(&cfg.CustomIpv4, "custom-ipv4", "", "Custom IPv4 address to use")
-	command.PersistentFlags().StringVar(&cfg.CustomIpv6, "custom-ipv6", "", "Custom IPv6 address to use")
-	command.PersistentFlags().BoolVar(&cfg.GetIpAddrFromNic, "get-ip-addr-from-nic", false, "Get IP address from network interface")
+	command.PersistentFlags().StringVar(&cfg.CustomIPv4, "custom-ipv4", "", "Custom IPv4 address to use")
+	command.PersistentFlags().StringVar(&cfg.CustomIPv6, "custom-ipv6", "", "Custom IPv6 address to use")
+	command.PersistentFlags().BoolVar(&cfg.GetIPAddressFromNIC, "get-ip-addr-from-nic", false, "Get IP address from network interface")
 	command.PersistentFlags().StringVar(&cfg.ConfigFile, "config", "", "Path to the configuration file")
 	command.PersistentFlags().BoolVar(&cfg.DisableCompression, "disable-compression", false, "Disable v2 gzip/permessage-deflate compression")
 	command.PersistentFlags().StringVar(&cfg.PreferIPVersion, "prefer-ip-version", "", "Prefer IP version for dashboard connections: 4 or 6")

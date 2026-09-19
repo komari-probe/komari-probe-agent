@@ -21,9 +21,9 @@ var (
 	httpClients  = make(map[httpClientKey]*http.Client)
 )
 
-// GetHTTPClientWithPreference returns a cached client using the configured
+// NewHTTPClientWithPreference returns a cached client using the configured
 // resolver and the requested IP-version preference.
-func GetHTTPClientWithPreference(timeout time.Duration, preferIPVersion string, ignoreUnsafeCert bool) *http.Client {
+func NewHTTPClientWithPreference(timeout time.Duration, preferIPVersion string, ignoreUnsafeCert bool) *http.Client {
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}

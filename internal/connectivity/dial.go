@@ -13,17 +13,17 @@ var (
 	hasIPv4      bool
 )
 
-// GetNetDialer returns a dialer that uses the configured DNS resolver.
-func GetNetDialer(timeout time.Duration) *net.Dialer {
+// NewNetDialer returns a dialer that uses the configured DNS resolver.
+func NewNetDialer(timeout time.Duration) *net.Dialer {
 	if timeout <= 0 {
 		timeout = 5 * time.Second
 	}
 	return &net.Dialer{Timeout: timeout, KeepAlive: 30 * time.Second, Resolver: customResolver()}
 }
 
-// GetDialContextWithPreference resolves a host, sorts addresses by the
+// NewDialContextWithPreference resolves a host, sorts addresses by the
 // requested IP-version preference, and attempts each address in turn.
-func GetDialContextWithPreference(timeout time.Duration, preferIPVersion string) func(context.Context, string, string) (net.Conn, error) {
+func NewDialContextWithPreference(timeout time.Duration, preferIPVersion string) func(context.Context, string, string) (net.Conn, error) {
 	if timeout <= 0 {
 		timeout = 15 * time.Second
 	}

@@ -17,19 +17,19 @@ import (
 	"github.com/komari-probe/komari-probe-agent/pkg/idna"
 )
 
-// AutoDiscoveryConfig 自动发现配置结构体
-type AutoDiscoveryConfig struct {
+// autoDiscoveryCredentials 自动发现配置结构体
+type autoDiscoveryCredentials struct {
 	UUID  string `json:"uuid"`
 	Token string `json:"token"`
 }
 
-// RegisterRequest 注册请求结构体
-type RegisterRequest struct {
+// registrationRequest 注册请求结构体
+type registrationRequest struct {
 	Key string `json:"key"`
 }
 
-// RegisterResponse 注册响应结构体
-type RegisterResponse struct {
+// registrationResponse 注册响应结构体
+type registrationResponse struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`
 	Data    struct {
@@ -50,8 +50,8 @@ func getAutoDiscoveryFilePath() string {
 	return filepath.Join(execDir, "auto-discovery.json")
 }
 
-// loadAutoDiscoveryConfig 加载自动发现配置
-func loadAutoDiscoveryConfig() (*AutoDiscoveryConfig, error) {
+// loadAutoDiscoveryCredentials 加载自动发现配置
+func loadAutoDiscoveryCredentials() (*autoDiscoveryCredentials, error) {
 	configPath := getAutoDiscoveryFilePath()
 
 	// 检查文件是否存在
@@ -62,31 +62,31 @@ func loadAutoDiscoveryConfig() (*AutoDiscoveryConfig, error) {
 	// 读取文件内容
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read auto-discovery config: %v", err)
+		return nil, fmt.Errorf("failed to read auto-discovery config: %w", err)
 	}
 
 	// 解析JSON
-	var autoDiscoveryConfig AutoDiscoveryConfig
-	if err := json.Unmarshal(data, &autoDiscoveryConfig); err != nil {
-		return nil, fmt.Errorf("failed to parse auto-discovery config: %v", err)
+	var credentials autoDiscoveryCredentials
+	if err := json.Unmarshal(data, &credentials); err != nil {
+		return nil, fmt.Errorf("failed to parse auto-discovery config: %w", err)
 	}
 
-	return &autoDiscoveryConfig, nil
+	return &credentials, nil
 }
 
-// saveAutoDiscoveryConfig 保存自动发现配置
-func saveAutoDiscoveryConfig(autoDiscoveryConfig *AutoDiscoveryConfig) error {
+// saveAutoDiscoveryCredentials 保存自动发现配置
+func saveAutoDiscoveryCredentials(credentials *autoDiscoveryCredentials) error {
 	configPath := getAutoDiscoveryFilePath()
 
 	// 序列化为JSON
-	data, err := json.MarshalIndent(autoDiscoveryConfig, "", "  ")
+	data, err := json.MarshalIndent(credentials, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal auto-discovery config: %v", err)
+		return fmt.Errorf("failed to marshal auto-discovery config: %w", err)
 	}
 
 	// 写入文件
-	if err := os.WriteFile(configPath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write auto-discovery config: %v", err)
+	if err := os.WriteFile(configPath, data, 0o600); err != nil {
+		return fmt.Errorf("failed to write auto-discovery config: %w", err)
 	}
 
 	log.Printf("Auto-discovery config saved to: %s", configPath)
@@ -95,17 +95,20 @@ func saveAutoDiscoveryConfig(autoDiscoveryConfig *AutoDiscoveryConfig) error {
 
 // registerWithAutoDiscovery uses the configured discovery key to register and
 // returns the credentials that should be used for the current Agent run.
-func registerWithAutoDiscovery(cfg config.Config) (*AutoDiscoveryConfig, error) {
+func registerWithAutoDiscovery(cfg config.Config) (*autoDiscoveryCredentials, error) {
 	// 构造注册请求
-	requestData := RegisterRequest{
+	requestData := registrationRequest{
 		Key: cfg.AutoDiscoveryKey,
 	}
 
-	hostname, _ := os.Hostname()
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, fmt.Errorf("get hostname: %w", err)
+	}
 
 	jsonData, err := json.Marshal(requestData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal register request: %v", err)
+		return nil, fmt.Errorf("failed to marshal register request: %w", err)
 	}
 
 	// 构造请求URL
@@ -126,7 +129,7 @@ func registerWithAutoDiscovery(cfg config.Config) (*AutoDiscoveryConfig, error) 
 	// 创建HTTP请求
 	req, err := http.NewRequest("POST", registerURL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create register request: %v", err)
+		return nil, fmt.Errorf("failed to create register request: %w", err)
 	}
 
 	// 设置请求头
@@ -134,23 +137,26 @@ func registerWithAutoDiscovery(cfg config.Config) (*AutoDiscoveryConfig, error) 
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", cfg.AutoDiscoveryKey))
 
 	// 发送请求
-	client := connectivity.GetHTTPClientWithPreference(30*time.Second, cfg.PreferIPVersion, cfg.IgnoreUnsafeCert)
+	client := connectivity.NewHTTPClientWithPreference(30*time.Second, cfg.PreferIPVersion, cfg.IgnoreUnsafeCert)
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send register request: %v", err)
+		return nil, fmt.Errorf("failed to send register request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	// 检查响应状态
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("read failed registration response: %w", err)
+		}
 		return nil, fmt.Errorf("register request failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
 	// 解析响应
-	var registerResp RegisterResponse
+	var registerResp registrationResponse
 	if err := json.NewDecoder(resp.Body).Decode(&registerResp); err != nil {
-		return nil, fmt.Errorf("failed to parse register response: %v", err)
+		return nil, fmt.Errorf("failed to parse register response: %w", err)
 	}
 
 	// 检查响应状态
@@ -159,18 +165,18 @@ func registerWithAutoDiscovery(cfg config.Config) (*AutoDiscoveryConfig, error) 
 	}
 
 	// 保存配置
-	autoDiscoveryConfig := &AutoDiscoveryConfig{
+	credentials := &autoDiscoveryCredentials{
 		UUID:  registerResp.Data.UUID,
 		Token: registerResp.Data.Token,
 	}
 
-	if err := saveAutoDiscoveryConfig(autoDiscoveryConfig); err != nil {
-		return nil, fmt.Errorf("failed to save auto-discovery config: %v", err)
+	if err := saveAutoDiscoveryCredentials(credentials); err != nil {
+		return nil, fmt.Errorf("failed to save auto-discovery config: %w", err)
 	}
 
 	log.Printf("Successfully registered with auto-discovery. UUID: %s", registerResp.Data.UUID)
 
-	return autoDiscoveryConfig, nil
+	return credentials, nil
 }
 
 // ResolveAutoDiscovery loads or registers auto-discovery credentials and
@@ -178,25 +184,25 @@ func registerWithAutoDiscovery(cfg config.Config) (*AutoDiscoveryConfig, error) 
 // process configuration.
 func ResolveAutoDiscovery(cfg config.Config) (config.Config, error) {
 	// 尝试加载现有配置
-	autoDiscoveryConfig, err := loadAutoDiscoveryConfig()
+	credentials, err := loadAutoDiscoveryCredentials()
 	if err != nil {
 		log.Printf("Failed to load auto-discovery config: %v", err)
 		// 继续尝试注册
 	}
 
-	if autoDiscoveryConfig != nil {
+	if credentials != nil {
 		// 配置文件存在，使用现有token
-		cfg.Token = autoDiscoveryConfig.Token
-		log.Printf("Using existing auto-discovery token for UUID: %s", autoDiscoveryConfig.UUID)
+		cfg.Token = credentials.Token
+		log.Printf("Using existing auto-discovery token for UUID: %s", credentials.UUID)
 		return cfg, nil
 	}
 
 	// 配置文件不存在，进行注册
 	log.Println("Auto-discovery config not found, registering with server...")
-	autoDiscoveryConfig, err = registerWithAutoDiscovery(cfg)
+	credentials, err = registerWithAutoDiscovery(cfg)
 	if err != nil {
 		return cfg, err
 	}
-	cfg.Token = autoDiscoveryConfig.Token
+	cfg.Token = credentials.Token
 	return cfg, nil
 }
