@@ -1,21 +1,17 @@
 package reporter
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"math"
-	"net/http"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
-	"github.com/komari-probe/komari-probe-agent/internal/protocol/transport"
 	v2 "github.com/komari-probe/komari-probe-agent/internal/protocol/v2"
 	"github.com/komari-probe/komari-probe-agent/pkg/idna"
 )
@@ -97,7 +93,7 @@ func EstablishWebSocketConnection() {
 			nextReportAt = time.Now().Add(reportInterval)
 
 			data := v2.BuildReportPayload(GenerateReport())
-			err = conn.WriteMessage(websocket.TextMessage, data)
+			err = sendRPCPayload(conn, data)
 			if err != nil {
 				log.Println("Failed to send WebSocket message:", err)
 				conn.Close()
@@ -208,35 +204,9 @@ func postV2Request(payload []byte) (*v2.Response, error) {
 }
 
 func postV2RequestContext(ctx context.Context, payload []byte) (*v2.Response, error) {
-	endpoint := strings.TrimSuffix(flags.Endpoint, "/") + "/api/clients/v2/rpc?token=" + flags.Token
-	body := payload
-	compressed := false
-	if !flags.DisableCompression {
-		if gz, err := transport.GzipBytes(payload); err == nil {
-			body = gz
-			compressed = true
-		}
-	}
-	req, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(body))
+	bytesBody, err := postRPCPayload(ctx, payload, 35*time.Second)
 	if err != nil {
 		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if compressed {
-		req.Header.Set("Content-Encoding", "gzip")
-	}
-	client := connectivity.GetHTTPClientWithPreference(35*time.Second, flags.PreferIPVersion, flags.IgnoreUnsafeCert)
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	bytesBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, &v2.HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status, Body: string(bytesBody)}
 	}
 	rpcResp, err := v2.ParseResponse(bytesBody)
 	if err != nil {
