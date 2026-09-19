@@ -17,7 +17,6 @@ import (
 	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
 	"github.com/komari-probe/komari-probe-agent/internal/protocol/transport"
 	v2 "github.com/komari-probe/komari-probe-agent/internal/protocol/v2"
-	"github.com/komari-probe/komari-probe-agent/internal/task"
 	"github.com/komari-probe/komari-probe-agent/pkg/idna"
 )
 
@@ -381,7 +380,7 @@ func processV2Event(conn *connectivity.SafeConn, method string, params interface
 			Target string `json:"ping_target"`
 		}
 		if err := v2.BindParams(params, &p); err == nil {
-			go task.NewPingTask(conn, p.TaskID, p.Type, p.Target)
+			go reportPingTask(conn, p.TaskID, p.Type, p.Target)
 			return true
 		} else {
 			log.Printf("bad v2 ping params: %v", err)

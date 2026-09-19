@@ -17,6 +17,16 @@ var testTargets = []struct {
 	{"117.185.125.154:80"},
 }
 
+func TestProbeRejectsUnsupportedType(t *testing.T) {
+	result, err := Probe("unsupported", "example.com")
+	if err == nil {
+		t.Fatal("Probe() succeeded for an unsupported type")
+	}
+	if result != -1 {
+		t.Errorf("Probe() result = %d, want -1", result)
+	}
+}
+
 func TestICMPPing(t *testing.T) {
 	timeout := 3 * time.Second
 	for _, tt := range testTargets {
