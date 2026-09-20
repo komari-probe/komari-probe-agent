@@ -1,44 +1,41 @@
-name: Publish Snapshot
+name: Nightly Release
 
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [main]
 
 permissions:
-  contents: write
-  packages: write
+  contents: read
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 concurrency:
-  group: snapshot-${{ github.ref }}
+  group: nightly-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   validate-ref:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Check out repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Ensure snapshot target is main
+      - name: Ensure target is current main
         run: |
           if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
-            echo "Snapshot builds must run from refs/heads/main. Current ref: ${GITHUB_REF}"
+            echo "Nightly releases must run from refs/heads/main. Current ref: ${GITHUB_REF}"
             exit 1
           fi
 
           git fetch --no-tags --depth=1 origin main
           MAIN_SHA="$(git rev-parse FETCH_HEAD)"
-
           if [ "${GITHUB_SHA}" != "${MAIN_SHA}" ]; then
-            echo "Snapshot builds must use the current main commit."
+            echo "Nightly releases must use the current main commit."
             echo "Workflow SHA: ${GITHUB_SHA}"
             echo "Current main: ${MAIN_SHA}"
             exit 1
@@ -50,35 +47,37 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - name: Generate snapshot version
+      - name: Generate nightly version
         id: version
         run: |
-          VERSION="Snapshot-$(date -u +%y%m%d%H%M)"
+          VERSION="nightly-$(date -u +%Y%m%d-%H%M)"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Snapshot version: ${VERSION}"
+          echo "Nightly version: ${VERSION}"
 
-  build-and-attach-binaries:
+  build-binaries:
     needs: prepare
     runs-on: ubuntu-latest
-
     strategy:
       fail-fast: false
       matrix:
-        exclude:
-          - goos: windows
-            goarch: arm
-          - goos: darwin
-            goarch: 386
-          - goos: darwin
-            goarch: arm
         include:
-          - goos: linux
-            goarch: loong64
-        goos: [windows, linux, darwin, freebsd]
-        goarch: [amd64, arm64, 386, arm]
+          - { goos: windows, goarch: amd64 }
+          - { goos: windows, goarch: arm64 }
+          - { goos: windows, goarch: "386" }
+          - { goos: linux, goarch: amd64 }
+          - { goos: linux, goarch: arm64 }
+          - { goos: linux, goarch: "386" }
+          - { goos: linux, goarch: arm }
+          - { goos: linux, goarch: loong64 }
+          - { goos: darwin, goarch: amd64 }
+          - { goos: darwin, goarch: arm64 }
+          - { goos: freebsd, goarch: amd64 }
+          - { goos: freebsd, goarch: arm64 }
+          - { goos: freebsd, goarch: "386" }
+          - { goos: freebsd, goarch: arm }
 
     steps:
-      - name: Checkout code
+      - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Set up Go
@@ -93,123 +92,117 @@ jobs:
           CGO_ENABLED: 0
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
-          BINARY_NAME=komari-agent-${{ matrix.goos }}-${{ matrix.goarch }}
-          if [ "${{ matrix.goos }}" = "windows" ]; then
-            BINARY_NAME=${BINARY_NAME}.exe
+          BINARY_NAME="komari-agent-${GOOS}-${GOARCH}"
+          if [ "${GOOS}" = "windows" ]; then
+            BINARY_NAME="${BINARY_NAME}.exe"
           fi
-          go build -trimpath -ldflags="-X github.com/komari-probe/komari-probe-agent/internal/version.CurrentVersion=${VERSION}" -o $BINARY_NAME ./cmd/komari-agent
+          go build -trimpath -ldflags="-X github.com/komari-probe/komari-probe-agent/internal/version.CurrentVersion=${VERSION}" -o "${BINARY_NAME}" ./cmd/komari-agent
 
-      - name: Upload binary as artifact
+      - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
           name: komari-agent-${{ matrix.goos }}-${{ matrix.goarch }}
           path: komari-agent-${{ matrix.goos }}-${{ matrix.goarch }}*
 
-  publish-snapshot-release:
-    needs: [prepare, build-and-attach-binaries]
+  publish-release:
+    needs: [prepare, build-binaries]
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     steps:
-      - name: Checkout repository
+      - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Ensure commit is still current main
         run: |
           git fetch --no-tags --depth=1 origin main
           MAIN_SHA="$(git rev-parse FETCH_HEAD)"
-
           if [ "${GITHUB_SHA}" != "${MAIN_SHA}" ]; then
-            echo "Snapshot publish skipped because a newer main commit exists."
-            echo "Workflow SHA: ${GITHUB_SHA}"
-            echo "Current main: ${MAIN_SHA}"
+            echo "Nightly publish skipped because a newer main commit exists."
             exit 1
           fi
 
-      - name: Download all binaries
+      - name: Download binaries
         uses: actions/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: true
 
-      - name: Create snapshot prerelease and upload binaries
+      - name: Generate nightly checksums
+        run: |
+          (
+            cd artifacts
+            sha256sum komari-agent-* > checksums.txt
+          )
+
+      - name: Attest nightly binaries
+        uses: actions/attest@v4
+        with:
+          subject-checksums: artifacts/checksums.txt
+
+      - name: Create nightly prerelease
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           set -euxo pipefail
-          echo "Snapshot version: ${VERSION}"
-          ls -alR artifacts
-
-          if gh release view "${VERSION}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "Release ${VERSION} already exists, deleting it before recreation..."
-            gh release delete "${VERSION}" --repo "${{ github.repository }}" --cleanup-tag --yes
-          fi
-
           gh release create "${VERSION}" \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
             --title "${VERSION}" \
-            --notes "Automated snapshot build (${VERSION}) from commit ${{ github.sha }}." \
+            --notes "Automated nightly build from commit ${{ github.sha }}." \
             --prerelease \
-            artifacts/komari-agent-*
+            artifacts/*
 
           gh release list \
             --repo "${{ github.repository }}" \
             --limit 1000 \
             --json tagName,isPrerelease \
-            --jq '.[] | select(.isPrerelease and (.tagName | startswith("Snapshot-"))) | .tagName' |
+            --jq '.[] | select(.isPrerelease and (.tagName | startswith("nightly-"))) | .tagName' |
           while IFS= read -r tag; do
-            if [ -z "${tag}" ] || [ "${tag}" = "${VERSION}" ]; then
-              continue
+            if [ -n "${tag}" ] && [ "${tag}" != "${VERSION}" ]; then
+              gh release delete "${tag}" --repo "${{ github.repository }}" --cleanup-tag --yes
             fi
-
-            echo "Deleting old snapshot release ${tag}..."
-            gh release delete "${tag}" --repo "${{ github.repository }}" --cleanup-tag --yes
           done
-        shell: bash
 
-  build-and-push-docker:
-    needs: [prepare, publish-snapshot-release]
+  publish-docker:
+    needs: [prepare, publish-release]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     steps:
-      - name: Checkout repository
+      - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Ensure commit is still current main
         run: |
           git fetch --no-tags --depth=1 origin main
-          MAIN_SHA="$(git rev-parse FETCH_HEAD)"
-
-          if [ "${GITHUB_SHA}" != "${MAIN_SHA}" ]; then
-            echo "Snapshot Docker publish skipped because a newer main commit exists."
-            echo "Workflow SHA: ${GITHUB_SHA}"
-            echo "Current main: ${MAIN_SHA}"
-            exit 1
-          fi
+          test "${GITHUB_SHA}" = "$(git rev-parse FETCH_HEAD)"
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
-      - name: Build static binaries for multi-arch
+      - name: Build Linux binaries
         env:
-          GOOS: linux
           CGO_ENABLED: 0
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           LDFLAGS="-X github.com/komari-probe/komari-probe-agent/internal/version.CurrentVersion=${VERSION}"
-
-          echo "Building for linux/amd64..."
-          GOARCH=amd64 go build -trimpath -ldflags="$LDFLAGS" -o komari-agent-linux-amd64 ./cmd/komari-agent
-
-          echo "Building for linux/arm64..."
-          GOARCH=arm64 go build -trimpath -ldflags="$LDFLAGS" -o komari-agent-linux-arm64 ./cmd/komari-agent
+          GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="${LDFLAGS}" -o komari-agent-linux-amd64 ./cmd/komari-agent
+          GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="${LDFLAGS}" -o komari-agent-linux-arm64 ./cmd/komari-agent
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -217,28 +210,26 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to the Container registry
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=snapshot
-
       - name: Build and push Docker image
+        id: docker
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          no-cache: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:nightly
           provenance: false
+
+      - name: Attest nightly Docker image
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.docker.outputs.digest }}
+          push-to-registry: true

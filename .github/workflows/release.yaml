@@ -1,0 +1,181 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing stable release tag to publish
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - name: Validate stable release
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          test -n "${TAG}"
+          if [ "$(gh release view "${TAG}" --repo "${{ github.repository }}" --json isPrerelease --jq .isPrerelease)" = "true" ]; then
+            echo "Refusing to publish prerelease ${TAG} as a stable release."
+            exit 1
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+  build-binaries:
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build release assets
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Flatten binary names
+        run: bash scripts/flatten-goreleaser-output.sh build
+
+      - name: Attest release binaries
+        uses: actions/attest@v4
+        with:
+          subject-checksums: build/checksums.txt
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          path: |
+            build/komari-agent-*
+            build/checksums.txt
+
+  publish-binaries:
+    needs: [prepare, build-binaries]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+          path: artifacts
+
+      - name: Upload binary assets and checksums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: gh release upload "${TAG}" artifacts/* --repo "${{ github.repository }}" --clobber
+
+  publish-docker:
+    needs: [prepare, build-binaries]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - name: Download release assets
+        uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+          path: artifacts
+
+      - name: Prepare Docker build context
+        run: |
+          cp artifacts/komari-agent-linux-amd64 .
+          cp artifacts/komari-agent-linux-arm64 .
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        id: docker
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ needs.prepare.outputs.tag }}
+            ghcr.io/${{ github.repository }}:latest
+
+      - name: Attest release Docker image
+        uses: actions/attest@v4
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.docker.outputs.digest }}
+          push-to-registry: true
+
+  update-release-notes:
+    needs: [prepare, publish-binaries, publish-docker]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Generate release notes
+        uses: actions/github-script@v9
+        env:
+          TAG: ${{ needs.prepare.outputs.tag }}
+        with:
+          script: |
+            const tag = process.env.TAG;
+            const { owner, repo } = context.repo;
+            const release = (await github.rest.repos.getReleaseByTag({ owner, repo, tag })).data;
+            const generated = await github.request(
+              "POST /repos/{owner}/{repo}/releases/generate-notes",
+              { owner, repo, tag_name: tag, target_commitish: release.target_commitish || undefined },
+            );
+            const body = generated.data.body?.trim();
+            if (!body) core.setFailed(`GitHub returned empty release notes for ${tag}.`);
+            else await github.rest.repos.updateRelease({ owner, repo, release_id: release.id, body });
