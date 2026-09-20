@@ -1,7 +1,7 @@
 package collector
 
 import (
-	"log"
+	log "github.com/komari-probe/komari-probe-agent/internal/logging"
 )
 
 // InitNetStatic starts netstatic when monthly traffic resets are enabled and

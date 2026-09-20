@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"log"
+	log "github.com/komari-probe/komari-probe-agent/internal/logging"
 	"os"
 
 	"github.com/komari-probe/komari-probe-agent/internal/app"
@@ -19,7 +19,10 @@ func NewRootCmd() *cobra.Command {
 		Short: "Komari Probe Agent - Pure, lightweight, and high-precision server monitoring probe",
 		Long:  `Komari Probe Agent is a secure and unprivileged server monitoring probe.`,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-			return loadConfiguration(cmd, &cfg)
+			if err := loadConfiguration(cmd, &cfg); err != nil {
+				return err
+			}
+			return log.SetLevel(cfg.LogLevel)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return app.Run(cfg)
@@ -147,6 +150,9 @@ func applyCLIOverrides(cmd *cobra.Command, cliValues config.Config, dst *config.
 	if flagChanged(cmd, "prefer-ip-version") {
 		dst.PreferIPVersion = cliValues.PreferIPVersion
 	}
+	if flagChanged(cmd, "log-level") {
+		dst.LogLevel = cliValues.LogLevel
+	}
 }
 
 func flagChanged(cmd *cobra.Command, name string) bool {
@@ -177,5 +183,6 @@ func bindPersistentFlags(command *cobra.Command, cfg *config.Config) {
 	command.PersistentFlags().StringVar(&cfg.ConfigFile, "config", "", "Path to the configuration file")
 	command.PersistentFlags().BoolVar(&cfg.DisableCompression, "disable-compression", false, "Disable v2 gzip/permessage-deflate compression")
 	command.PersistentFlags().StringVar(&cfg.PreferIPVersion, "prefer-ip-version", "", "Prefer IP version for dashboard connections: 4 or 6")
+	command.PersistentFlags().StringVar(&cfg.LogLevel, "log-level", defaults.LogLevel, "Minimum log level: debug, info, warn, or error")
 	command.PersistentFlags().ParseErrorsWhitelist.UnknownFlags = true
 }

@@ -42,6 +42,7 @@ func TestConfigValidate(t *testing.T) {
 		{name: "zero interval", cfg: Config{Endpoint: "https://example.com", Token: "token", Interval: 0, MaxRetries: 0, ReconnectInterval: 1, InfoReportInterval: 1}, want: true},
 		{name: "negative retries", cfg: Config{Endpoint: "https://example.com", Token: "token", Interval: 1, MaxRetries: -1, ReconnectInterval: 1, InfoReportInterval: 1}, want: true},
 		{name: "invalid IP preference", cfg: Config{Endpoint: "https://example.com", Token: "token", Interval: 1, MaxRetries: 0, ReconnectInterval: 1, InfoReportInterval: 1, PreferIPVersion: "5"}, want: true},
+		{name: "invalid log level", cfg: Config{Endpoint: "https://example.com", Token: "token", Interval: 1, MaxRetries: 0, ReconnectInterval: 1, InfoReportInterval: 1, LogLevel: "verbose"}, want: true},
 	}
 
 	for _, tt := range tests {

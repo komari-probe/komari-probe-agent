@@ -4,7 +4,7 @@ package app
 import (
 	"context"
 	"fmt"
-	"log"
+	log "github.com/komari-probe/komari-probe-agent/internal/logging"
 	"os"
 	"os/signal"
 	"sync"
