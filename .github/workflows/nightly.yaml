@@ -96,7 +96,7 @@ jobs:
           if [ "${GOOS}" = "windows" ]; then
             BINARY_NAME="${BINARY_NAME}.exe"
           fi
-          go build -trimpath -ldflags="-X github.com/komari-probe/komari-probe-agent/internal/version.CurrentVersion=${VERSION}" -o "${BINARY_NAME}" ./cmd/komari-agent
+          go build -trimpath -ldflags="-X github.com/komari-probe/komari-probe-agent/internal/version.CurrentVersion=${VERSION}" -o "${BINARY_NAME}" ./cmd/komari-probe-agent
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
@@ -201,8 +201,8 @@ jobs:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           LDFLAGS="-X github.com/komari-probe/komari-probe-agent/internal/version.CurrentVersion=${VERSION}"
-          GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="${LDFLAGS}" -o komari-agent-linux-amd64 ./cmd/komari-agent
-          GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="${LDFLAGS}" -o komari-agent-linux-arm64 ./cmd/komari-agent
+          GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="${LDFLAGS}" -o komari-agent-linux-amd64 ./cmd/komari-probe-agent
+          GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="${LDFLAGS}" -o komari-agent-linux-arm64 ./cmd/komari-probe-agent
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

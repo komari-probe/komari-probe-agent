@@ -1,12 +1,12 @@
 version: 2
 
-project_name: komari-agent
+project_name: komari-probe-agent
 
 dist: build
 
 builds:
   - id: komari-agent
-    main: ./cmd/komari-agent
+    main: ./cmd/komari-probe-agent
     binary: komari-agent
     env:
       - CGO_ENABLED=0

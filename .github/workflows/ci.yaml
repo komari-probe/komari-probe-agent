@@ -40,7 +40,7 @@ jobs:
         run: go vet ./...
 
       - name: Build Agent
-        run: go build ./cmd/komari-agent
+        run: go build ./cmd/komari-probe-agent
 
   static-analysis:
     if: ${{ github.event_name != 'schedule' }}

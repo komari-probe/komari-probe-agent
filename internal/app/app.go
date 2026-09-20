@@ -78,7 +78,7 @@ func run(ctx context.Context, cfg config.Config) error {
 			log.Printf("save network traffic statistics during shutdown: %v", err)
 		}
 	}()
-	log.Println("Komari Agent", version.CurrentVersion)
+	log.Println("Komari Probe Agent", version.CurrentVersion)
 
 	diskList, err := hostCollector.DiskList()
 	if err != nil {

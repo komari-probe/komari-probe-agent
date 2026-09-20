@@ -1,4 +1,6 @@
-# komari-agent
+# Komari Probe Agent
+
+Komari Probe Agent 是部署在被监控主机上的轻量级监控组件，负责采集指标、执行探测并向 Komari Probe 中心端上报数据。
 
 ## 配置方式
 
