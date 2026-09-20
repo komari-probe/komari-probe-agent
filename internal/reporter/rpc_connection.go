@@ -20,7 +20,14 @@ const (
 	v2SeenEventLimit = 4096
 )
 
-func (r *Reporter) EstablishWebSocketConnection() {
+// Run sends the initial basic information and maintains the reporting
+// connection until ctx is canceled.
+func (r *Reporter) Run(ctx context.Context) error {
+	r.UpdateBasicInfo(ctx)
+	return r.runWebSocketConnection(ctx)
+}
+
+func (r *Reporter) runWebSocketConnection(ctx context.Context) error {
 	var conn *connectivity.SafeConn
 	defer func() {
 		if conn != nil {
@@ -44,6 +51,14 @@ func (r *Reporter) EstablishWebSocketConnection() {
 
 	for {
 		select {
+		case <-ctx.Done():
+			if conn != nil {
+				_ = conn.Close()
+			}
+			if readDone != nil {
+				<-readDone
+			}
+			return nil
 		case <-dataTicker.C:
 			if conn == nil {
 				log.Println("Attempting to connect to WebSocket...")
@@ -53,31 +68,36 @@ func (r *Reporter) EstablishWebSocketConnection() {
 						log.Println("Retrying websocket connection, attempt:", retry)
 					}
 					websocketEndpoint := r.buildWebSocketEndpoint()
-					conn, err = r.connectWebSocket(websocketEndpoint)
+					conn, err = r.connectWebSocket(ctx, websocketEndpoint)
 					if err == nil {
 						log.Println("WebSocket connected using v2 protocol")
 						done := make(chan struct{})
 						readDone = done
-						go r.handleWebSocketMessages(conn, done)
+						go r.handleWebSocketMessages(ctx, conn, done)
 						break
-					} else {
+					} else if ctx.Err() == nil {
 						log.Println("Failed to connect to WebSocket:", err)
 					}
 					retry++
-					time.Sleep(time.Duration(r.options.ReconnectInterval) * time.Second)
+					if !waitForContext(ctx, time.Duration(r.options.ReconnectInterval)*time.Second) {
+						return nil
+					}
 				}
 
 				if retry > r.options.MaxRetries {
 					log.Println("Max retries reached.")
-					conn, err = r.runPostFallback(r.buildWebSocketEndpoint(), interval)
+					conn, err = r.runPostFallback(ctx, r.buildWebSocketEndpoint(), interval)
 					if err != nil {
+						if ctx.Err() != nil {
+							return nil
+						}
 						log.Println("POST fallback stopped:", err)
-						return
+						return err
 					}
 					log.Println("WebSocket recovered from POST fallback")
 					done := make(chan struct{})
 					readDone = done
-					go r.handleWebSocketMessages(conn, done)
+					go r.handleWebSocketMessages(ctx, conn, done)
 				}
 			}
 			if conn == nil || time.Now().Before(nextReportAt) {
@@ -95,10 +115,10 @@ func (r *Reporter) EstablishWebSocketConnection() {
 				log.Println("Failed to build WebSocket report payload:", err)
 				continue
 			}
-			err = r.sendRPCPayload(conn, data)
+			err = r.sendRPCPayload(ctx, conn, data)
 			if err != nil {
 				log.Println("Failed to send WebSocket message:", err)
-				conn.Close()
+				_ = conn.Close()
 				conn = nil // Mark connection as dead
 				readDone = nil
 				continue
@@ -108,7 +128,7 @@ func (r *Reporter) EstablishWebSocketConnection() {
 				err := conn.WriteMessage(websocket.PingMessage, nil)
 				if err != nil {
 					log.Println("Failed to send heartbeat:", err)
-					conn.Close()
+					_ = conn.Close()
 					conn = nil // Mark connection as dead
 					readDone = nil
 				}
@@ -116,7 +136,7 @@ func (r *Reporter) EstablishWebSocketConnection() {
 		case <-readDone:
 			log.Println("WebSocket disconnected")
 			if conn != nil {
-				conn.Close()
+				_ = conn.Close()
 				conn = nil
 			}
 			readDone = nil
@@ -135,11 +155,18 @@ func (r *Reporter) buildWebSocketEndpoint() string {
 	return websocketEndpoint
 }
 
-func (r *Reporter) runPostFallback(websocketEndpoint string, interval float64) (*connectivity.SafeConn, error) {
+func (r *Reporter) runPostFallback(ctx context.Context, websocketEndpoint string, interval float64) (*connectivity.SafeConn, error) {
 	log.Println("Entering v2 POST fallback mode")
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go r.runV2PullLoop(ctx)
+	pullCtx, cancelPull := context.WithCancel(ctx)
+	pullDone := make(chan struct{})
+	go func() {
+		defer close(pullDone)
+		r.runV2PullLoop(pullCtx)
+	}()
+	defer func() {
+		cancelPull()
+		<-pullDone
+	}()
 
 	reportTicker := time.NewTicker(time.Duration(interval * float64(time.Second)))
 	defer reportTicker.Stop()
@@ -148,6 +175,8 @@ func (r *Reporter) runPostFallback(websocketEndpoint string, interval float64) (
 
 	for {
 		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
 		case <-reportTicker.C:
 			reportID := fmt.Sprintf("report-%d", time.Now().UnixNano())
 			ackIDs := r.snapshotV2AckEventIDs()
@@ -161,15 +190,15 @@ func (r *Reporter) runPostFallback(websocketEndpoint string, interval float64) (
 				log.Println("Failed to build POST report payload:", err)
 				continue
 			}
-			resp, err := r.postV2Request(payload)
+			resp, err := r.postV2Request(ctx, payload)
 			if err != nil {
 				log.Println("Failed to POST v2 report:", err)
 				continue
 			}
 			r.clearV2AckEventIDs(ackIDs)
-			r.processV2ResponseEvents(resp)
+			r.processV2ResponseEvents(ctx, resp)
 		case <-reconnectTicker.C:
-			conn, err := r.connectWebSocket(websocketEndpoint)
+			conn, err := r.connectWebSocket(ctx, websocketEndpoint)
 			if err == nil {
 				return conn, nil
 			}
@@ -211,12 +240,8 @@ func (r *Reporter) runV2PullLoop(ctx context.Context) {
 			continue
 		}
 		r.clearV2AckEventIDs(ackIDs)
-		r.processV2ResponseEvents(resp)
+		r.processV2ResponseEvents(ctx, resp)
 	}
-}
-
-func (r *Reporter) postV2Request(payload []byte) (*v2.Response, error) {
-	return r.postV2RequestContext(context.Background(), payload)
 }
 
 func (r *Reporter) postV2RequestContext(ctx context.Context, payload []byte) (*v2.Response, error) {
@@ -231,7 +256,7 @@ func (r *Reporter) postV2RequestContext(ctx context.Context, payload []byte) (*v
 	return rpcResp, nil
 }
 
-func (r *Reporter) processV2ResponseEvents(resp *v2.Response) {
+func (r *Reporter) processV2ResponseEvents(ctx context.Context, resp *v2.Response) {
 	if resp == nil || resp.Result == nil {
 		return
 	}
@@ -241,7 +266,7 @@ func (r *Reporter) processV2ResponseEvents(resp *v2.Response) {
 		return
 	}
 	for _, event := range result.Events {
-		if r.processV2Event(nil, event.Method, event.Params, event.ID) {
+		if r.processV2Event(ctx, nil, event.Method, event.Params, event.ID) {
 			r.addV2AckEventID(event.ID)
 		}
 	}
@@ -312,7 +337,11 @@ func (r *Reporter) markV2EventSeen(id string) bool {
 	return true
 }
 
-func (r *Reporter) connectWebSocket(websocketEndpoint string) (*connectivity.SafeConn, error) {
+func (r *Reporter) postV2Request(ctx context.Context, payload []byte) (*v2.Response, error) {
+	return r.postV2RequestContext(ctx, payload)
+}
+
+func (r *Reporter) connectWebSocket(ctx context.Context, websocketEndpoint string) (*connectivity.SafeConn, error) {
 	dialer := connectivity.NewWebSocketDialer(connectivity.WebSocketDialerOptions{
 		HandshakeTimeout:  15 * time.Second,
 		DialTimeout:       15 * time.Second,
@@ -321,7 +350,7 @@ func (r *Reporter) connectWebSocket(websocketEndpoint string) (*connectivity.Saf
 		EnableCompression: !r.options.DisableCompression,
 	})
 
-	conn, resp, err := dialer.Dial(websocketEndpoint, nil)
+	conn, resp, err := dialer.DialContext(ctx, websocketEndpoint, nil)
 	if err != nil {
 		if resp != nil && resp.StatusCode != 101 {
 			return nil, &HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status}
@@ -332,7 +361,7 @@ func (r *Reporter) connectWebSocket(websocketEndpoint string) (*connectivity.Saf
 	return connectivity.NewSafeConn(conn), nil
 }
 
-func (r *Reporter) handleWebSocketMessages(conn *connectivity.SafeConn, done chan<- struct{}) {
+func (r *Reporter) handleWebSocketMessages(ctx context.Context, conn *connectivity.SafeConn, done chan<- struct{}) {
 	defer close(done)
 	for {
 		_, message_raw, err := conn.ReadMessage()
@@ -350,11 +379,14 @@ func (r *Reporter) handleWebSocketMessages(conn *connectivity.SafeConn, done cha
 			log.Printf("Bad v2 ws message version %q", message.JSONRPC)
 			continue
 		}
-		r.processV2Event(conn, message.Method, message.Params, "")
+		r.processV2Event(ctx, conn, message.Method, message.Params, "")
 	}
 }
 
-func (r *Reporter) processV2Event(conn *connectivity.SafeConn, method string, params any, eventID string) bool {
+func (r *Reporter) processV2Event(ctx context.Context, conn *connectivity.SafeConn, method string, params any, eventID string) bool {
+	if ctx.Err() != nil {
+		return false
+	}
 	if !r.markV2EventSeen(eventID) {
 		return true
 	}
@@ -366,7 +398,7 @@ func (r *Reporter) processV2Event(conn *connectivity.SafeConn, method string, pa
 			Target string `json:"ping_target"`
 		}
 		if err := v2.BindParams(params, &p); err == nil {
-			go r.reportPingTask(conn, p.TaskID, p.Type, p.Target)
+			go r.reportPingTask(ctx, conn, p.TaskID, p.Type, p.Target)
 			return true
 		} else {
 			log.Printf("bad v2 ping params: %v", err)
@@ -378,4 +410,15 @@ func (r *Reporter) processV2Event(conn *connectivity.SafeConn, method string, pa
 		log.Printf("unknown v2 event method %s", method)
 	}
 	return false
+}
+
+func waitForContext(ctx context.Context, duration time.Duration) bool {
+	timer := time.NewTimer(duration)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
 }

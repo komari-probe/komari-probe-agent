@@ -7,10 +7,10 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/komari-probe/komari-probe-agent/internal/collector"
-	"github.com/komari-probe/komari-probe-agent/internal/collector/netstatic"
 	"github.com/komari-probe/komari-probe-agent/internal/config"
 	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
 	"github.com/komari-probe/komari-probe-agent/internal/discovery"
@@ -21,20 +21,15 @@ import (
 // Run starts the Agent runtime after command-line configuration has been
 // resolved. It owns the application's lifecycle and service orchestration.
 func Run(cfg config.Config) error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return run(ctx, cfg)
+}
+
+func run(ctx context.Context, cfg config.Config) error {
 	if err := cfg.Validate(); err != nil {
 		return fmt.Errorf("invalid configuration: %w", err)
 	}
-
-	stopCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-	go func() {
-		<-stopCtx.Done()
-		log.Printf("shutting down gracefully...")
-		if err := netstatic.Stop(); err != nil {
-			log.Printf("save network traffic statistics during shutdown: %v", err)
-		}
-		os.Exit(0)
-	}()
 
 	if cfg.AutoDiscoveryKey != "" {
 		var err error
@@ -70,6 +65,11 @@ func Run(cfg config.Config) error {
 	}, hostCollector)
 
 	hostCollector.InitNetStatic()
+	defer func() {
+		if err := hostCollector.Close(); err != nil {
+			log.Printf("save network traffic statistics during shutdown: %v", err)
+		}
+	}()
 	log.Println("Komari Agent", version.CurrentVersion)
 
 	if cfg.CustomDNS != "" {
@@ -90,9 +90,22 @@ func Run(cfg config.Config) error {
 	}
 	log.Println("Monitoring Interfaces:", interfaceList)
 
-	go agentReporter.RunStaticInfoReporter()
-	for {
-		agentReporter.UpdateBasicInfo()
-		agentReporter.EstablishWebSocketConnection()
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	var staticInfoWG sync.WaitGroup
+	staticInfoWG.Add(1)
+	go func() {
+		defer staticInfoWG.Done()
+		agentReporter.RunStaticInfoReporter(runCtx)
+	}()
+
+	err = agentReporter.Run(runCtx)
+	cancel()
+	staticInfoWG.Wait()
+	if ctx.Err() != nil {
+		log.Println("Agent shutdown complete")
+		return nil
 	}
+	return err
 }

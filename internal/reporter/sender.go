@@ -38,19 +38,19 @@ func (e *HTTPStatusError) Error() string {
 
 // sendRPC serializes a v2 RPC value and delivers it over the active WebSocket
 // connection, falling back to HTTP when no connection is available.
-func (r *Reporter) sendRPC(conn *connectivity.SafeConn, payload any) error {
+func (r *Reporter) sendRPC(ctx context.Context, conn *connectivity.SafeConn, payload any) error {
 	encoded, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
-	return r.sendRPCPayload(conn, encoded)
+	return r.sendRPCPayload(ctx, conn, encoded)
 }
 
-func (r *Reporter) sendRPCPayload(conn *connectivity.SafeConn, payload []byte) error {
+func (r *Reporter) sendRPCPayload(ctx context.Context, conn *connectivity.SafeConn, payload []byte) error {
 	if conn != nil {
 		return conn.WriteMessage(websocket.TextMessage, payload)
 	}
-	return r.postAndValidateRPC(context.Background(), payload, 30*time.Second)
+	return r.postAndValidateRPC(ctx, payload, 30*time.Second)
 }
 
 func (r *Reporter) postAndValidateRPC(ctx context.Context, payload []byte, timeout time.Duration) error {
