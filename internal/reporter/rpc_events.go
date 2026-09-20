@@ -56,9 +56,6 @@ func (r *Reporter) processV2Event(ctx context.Context, conn *connectivity.SafeCo
 	if ctx.Err() != nil {
 		return false
 	}
-	if !r.markV2EventSeen(eventID) {
-		return true
-	}
 	switch method {
 	case v2.MethodAgentPing:
 		var ping struct {
@@ -70,13 +67,32 @@ func (r *Reporter) processV2Event(ctx context.Context, conn *connectivity.SafeCo
 			log.Printf("bad v2 ping params: %v", err)
 			return false
 		}
+		if ping.TaskID == 0 || ping.Target == "" || !isSupportedPingType(ping.Type) {
+			log.Printf("invalid v2 ping task: id=%d type=%q target=%q", ping.TaskID, ping.Type, ping.Target)
+			return false
+		}
+		if !r.markV2EventSeen(eventID) {
+			return true
+		}
 		go r.reportPingTask(ctx, conn, ping.TaskID, ping.Type, ping.Target)
 		return true
 	case v2.MethodAgentMessage, v2.MethodAgentEvent:
+		if !r.markV2EventSeen(eventID) {
+			return true
+		}
 		log.Printf("received v2 %s: %+v", method, params)
 		return true
 	default:
 		log.Printf("unknown v2 event method %s", method)
+		return false
+	}
+}
+
+func isSupportedPingType(pingType string) bool {
+	switch pingType {
+	case "icmp", "tcp", "http":
+		return true
+	default:
 		return false
 	}
 }
@@ -112,6 +128,11 @@ func (r *Reporter) addV2AckEventID(id string) {
 	}
 	r.v2AckMu.Lock()
 	defer r.v2AckMu.Unlock()
+	for _, existingID := range r.v2AckEventIDs {
+		if existingID == id {
+			return
+		}
+	}
 	r.v2AckEventIDs = append(r.v2AckEventIDs, id)
 }
 

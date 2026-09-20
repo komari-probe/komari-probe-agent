@@ -5,11 +5,13 @@ import (
 	"testing"
 
 	"github.com/komari-probe/komari-probe-agent/internal/collector"
+	v2 "github.com/komari-probe/komari-probe-agent/internal/rpc/v2"
 )
 
 func TestV2AckEventIDsSnapshotAndClear(t *testing.T) {
 	r := New(Options{}, collector.New(collector.Options{}), nil)
 	r.addV2AckEventID("first")
+	r.addV2AckEventID("second")
 	r.addV2AckEventID("second")
 	r.addV2AckEventID("")
 
@@ -25,6 +27,44 @@ func TestV2AckEventIDsSnapshotAndClear(t *testing.T) {
 	r.clearV2AckEventIDs([]string{"first"})
 	if got := r.snapshotV2AckEventIDs(); len(got) != 1 || got[0] != "second" {
 		t.Fatalf("remaining ACK IDs = %#v, want [second]", got)
+	}
+}
+
+func TestProcessV2ResponseEventsAcknowledgesValidEventsOnce(t *testing.T) {
+	r := New(Options{}, collector.New(collector.Options{}), nil)
+	response := &v2.Response{Result: map[string]any{
+		"events": []any{map[string]any{
+			"id": "message-1", "method": v2.MethodAgentMessage, "params": map[string]any{"text": "hello"},
+		}},
+	}}
+	r.processV2ResponseEvents(context.Background(), response)
+	r.processV2ResponseEvents(context.Background(), response)
+
+	if got := r.snapshotV2AckEventIDs(); len(got) != 1 || got[0] != "message-1" {
+		t.Fatalf("ACK IDs = %#v, want [message-1]", got)
+	}
+}
+
+func TestProcessV2ResponseEventsRejectsInvalidPingTask(t *testing.T) {
+	r := New(Options{}, collector.New(collector.Options{}), nil)
+	response := &v2.Response{Result: map[string]any{
+		"events": []any{map[string]any{
+			"id": "ping-1", "method": v2.MethodAgentPing, "params": map[string]any{
+				"ping_task_id": 0, "ping_type": "tcp", "ping_target": "127.0.0.1:80",
+			},
+		}},
+	}}
+	r.processV2ResponseEvents(context.Background(), response)
+	if got := r.snapshotV2AckEventIDs(); len(got) != 0 {
+		t.Fatalf("invalid ping task ACK IDs = %#v, want none", got)
+	}
+}
+
+func TestProcessV2ResponseEventsIgnoresMalformedResult(t *testing.T) {
+	r := New(Options{}, collector.New(collector.Options{}), nil)
+	r.processV2ResponseEvents(context.Background(), &v2.Response{Result: "not an event result"})
+	if got := r.snapshotV2AckEventIDs(); len(got) != 0 {
+		t.Fatalf("malformed result ACK IDs = %#v, want none", got)
 	}
 }
 
