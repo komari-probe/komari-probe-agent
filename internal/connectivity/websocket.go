@@ -20,7 +20,7 @@ type WebSocketDialerOptions struct {
 
 // NewWebSocketDialer creates a dialer that follows the configured DNS and IP
 // version preferences used by other outbound connections.
-func NewWebSocketDialer(options WebSocketDialerOptions) *websocket.Dialer {
+func (manager *Manager) NewWebSocketDialer(options WebSocketDialerOptions) *websocket.Dialer {
 	if options.HandshakeTimeout <= 0 {
 		options.HandshakeTimeout = 15 * time.Second
 	}
@@ -30,7 +30,7 @@ func NewWebSocketDialer(options WebSocketDialerOptions) *websocket.Dialer {
 
 	dialer := &websocket.Dialer{
 		HandshakeTimeout:  options.HandshakeTimeout,
-		NetDialContext:    NewDialContextWithPreference(options.DialTimeout, options.PreferIPVersion),
+		NetDialContext:    manager.NewDialContextWithPreference(options.DialTimeout, options.PreferIPVersion),
 		Proxy:             http.ProxyFromEnvironment,
 		EnableCompression: options.EnableCompression,
 	}

@@ -342,7 +342,7 @@ func (r *Reporter) postV2Request(ctx context.Context, payload []byte) (*v2.Respo
 }
 
 func (r *Reporter) connectWebSocket(ctx context.Context, websocketEndpoint string) (*connectivity.SafeConn, error) {
-	dialer := connectivity.NewWebSocketDialer(connectivity.WebSocketDialerOptions{
+	dialer := r.connections.NewWebSocketDialer(connectivity.WebSocketDialerOptions{
 		HandshakeTimeout:  15 * time.Second,
 		DialTimeout:       15 * time.Second,
 		PreferIPVersion:   r.options.PreferIPVersion,

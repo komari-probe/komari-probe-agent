@@ -95,7 +95,7 @@ func saveAutoDiscoveryCredentials(credentials *autoDiscoveryCredentials) error {
 
 // registerWithAutoDiscovery uses the configured discovery key to register and
 // returns the credentials that should be used for the current Agent run.
-func registerWithAutoDiscovery(cfg config.Config) (*autoDiscoveryCredentials, error) {
+func registerWithAutoDiscovery(cfg config.Config, connections *connectivity.Manager) (*autoDiscoveryCredentials, error) {
 	// 构造注册请求
 	requestData := registrationRequest{
 		Key: cfg.AutoDiscoveryKey,
@@ -137,7 +137,7 @@ func registerWithAutoDiscovery(cfg config.Config) (*autoDiscoveryCredentials, er
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", cfg.AutoDiscoveryKey))
 
 	// 发送请求
-	client := connectivity.NewHTTPClientWithPreference(30*time.Second, cfg.PreferIPVersion, cfg.IgnoreUnsafeCert)
+	client := connections.NewHTTPClientWithPreference(30*time.Second, cfg.PreferIPVersion, cfg.IgnoreUnsafeCert)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send register request: %w", err)
@@ -182,7 +182,10 @@ func registerWithAutoDiscovery(cfg config.Config) (*autoDiscoveryCredentials, er
 // ResolveAutoDiscovery loads or registers auto-discovery credentials and
 // returns a copy of cfg with the effective token. It never mutates shared
 // process configuration.
-func ResolveAutoDiscovery(cfg config.Config) (config.Config, error) {
+func ResolveAutoDiscovery(cfg config.Config, connections *connectivity.Manager) (config.Config, error) {
+	if connections == nil {
+		connections = connectivity.NewManager(connectivity.Options{CustomDNSServer: cfg.CustomDNS})
+	}
 	// 尝试加载现有配置
 	credentials, err := loadAutoDiscoveryCredentials()
 	if err != nil {
@@ -199,7 +202,7 @@ func ResolveAutoDiscovery(cfg config.Config) (config.Config, error) {
 
 	// 配置文件不存在，进行注册
 	log.Println("Auto-discovery config not found, registering with server...")
-	credentials, err = registerWithAutoDiscovery(cfg)
+	credentials, err = registerWithAutoDiscovery(cfg, connections)
 	if err != nil {
 		return cfg, err
 	}

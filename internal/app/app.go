@@ -30,10 +30,16 @@ func run(ctx context.Context, cfg config.Config) error {
 	if err := cfg.Validate(); err != nil {
 		return fmt.Errorf("invalid configuration: %w", err)
 	}
+	connections := connectivity.NewManager(connectivity.Options{CustomDNSServer: cfg.CustomDNS})
+	if cfg.CustomDNS != "" {
+		log.Printf("Using custom DNS server: %s", cfg.CustomDNS)
+	} else {
+		log.Println("Using system default DNS resolver")
+	}
 
 	if cfg.AutoDiscoveryKey != "" {
 		var err error
-		cfg, err = discovery.ResolveAutoDiscovery(cfg)
+		cfg, err = discovery.ResolveAutoDiscovery(cfg, connections)
 		if err != nil {
 			return fmt.Errorf("auto-discovery failed: %w", err)
 		}
@@ -50,6 +56,8 @@ func run(ctx context.Context, cfg config.Config) error {
 		CustomIPv6:          cfg.CustomIPv6,
 		GetIPAddressFromNIC: cfg.GetIPAddressFromNIC,
 		HostProc:            cfg.HostProc,
+		Connectivity:        connections,
+		IgnoreUnsafeCert:    cfg.IgnoreUnsafeCert,
 	})
 	agentReporter := reporter.New(reporter.Options{
 		Endpoint:           cfg.Endpoint,
@@ -62,7 +70,7 @@ func run(ctx context.Context, cfg config.Config) error {
 		DisableCompression: cfg.DisableCompression,
 		PreferIPVersion:    cfg.PreferIPVersion,
 		EnableGPU:          cfg.EnableGPU,
-	}, hostCollector)
+	}, hostCollector, connections)
 
 	hostCollector.InitNetStatic()
 	defer func() {
@@ -71,13 +79,6 @@ func run(ctx context.Context, cfg config.Config) error {
 		}
 	}()
 	log.Println("Komari Agent", version.CurrentVersion)
-
-	if cfg.CustomDNS != "" {
-		connectivity.SetCustomDNSServer(cfg.CustomDNS)
-		log.Printf("Using custom DNS server: %s", cfg.CustomDNS)
-	} else {
-		log.Printf("Using system default DNS resolver")
-	}
 
 	diskList, err := hostCollector.DiskList()
 	if err != nil {

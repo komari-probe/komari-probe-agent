@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"sync"
 	"time"
 )
 
@@ -16,35 +15,30 @@ type httpClientKey struct {
 	preferIPVersion  string
 }
 
-var (
-	httpClientMu sync.Mutex
-	httpClients  = make(map[httpClientKey]*http.Client)
-)
-
 // NewHTTPClientWithPreference returns a cached client using the configured
 // resolver and the requested IP-version preference.
-func NewHTTPClientWithPreference(timeout time.Duration, preferIPVersion string, ignoreUnsafeCert bool) *http.Client {
+func (manager *Manager) NewHTTPClientWithPreference(timeout time.Duration, preferIPVersion string, ignoreUnsafeCert bool) *http.Client {
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}
 	preferIPVersion = normalizeIPVersionPreference(preferIPVersion)
 	key := httpClientKey{timeout: timeout, ignoreUnsafeCert: ignoreUnsafeCert, preferIPVersion: preferIPVersion}
 
-	httpClientMu.Lock()
-	defer httpClientMu.Unlock()
-	if client := httpClients[key]; client != nil {
+	manager.httpClientMu.Lock()
+	defer manager.httpClientMu.Unlock()
+	if client := manager.httpClients[key]; client != nil {
 		return client
 	}
 	client := &http.Client{
-		Transport: buildTransport(timeout, &tls.Config{InsecureSkipVerify: ignoreUnsafeCert}, preferIPVersion),
+		Transport: manager.buildTransport(timeout, &tls.Config{InsecureSkipVerify: ignoreUnsafeCert}, preferIPVersion),
 		Timeout:   timeout,
 	}
-	httpClients[key] = client
+	manager.httpClients[key] = client
 	return client
 }
 
-func buildTransport(timeout time.Duration, tlsConfig *tls.Config, preferIPVersion string) *http.Transport {
-	resolver := customResolver()
+func (manager *Manager) buildTransport(timeout time.Duration, tlsConfig *tls.Config, preferIPVersion string) *http.Transport {
+	resolver := manager.dnsResolver
 	return &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
@@ -56,7 +50,7 @@ func buildTransport(timeout time.Duration, tlsConfig *tls.Config, preferIPVersio
 			if err != nil {
 				return nil, err
 			}
-			sortIPsByPreference(ips, preferIPVersion)
+			manager.sortIPsByPreference(ips, preferIPVersion)
 			for _, ip := range ips {
 				dialer := &net.Dialer{Timeout: timeout, KeepAlive: 30 * time.Second, DualStack: true}
 				conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(ip, port))

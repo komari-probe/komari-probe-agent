@@ -4,30 +4,16 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"sync"
 	"time"
 )
 
-var (
-	preferV4Once sync.Once
-	hasIPv4      bool
-)
-
-// NewNetDialer returns a dialer that uses the configured DNS resolver.
-func NewNetDialer(timeout time.Duration) *net.Dialer {
-	if timeout <= 0 {
-		timeout = 5 * time.Second
-	}
-	return &net.Dialer{Timeout: timeout, KeepAlive: 30 * time.Second, Resolver: customResolver()}
-}
-
 // NewDialContextWithPreference resolves a host, sorts addresses by the
 // requested IP-version preference, and attempts each address in turn.
-func NewDialContextWithPreference(timeout time.Duration, preferIPVersion string) func(context.Context, string, string) (net.Conn, error) {
+func (manager *Manager) NewDialContextWithPreference(timeout time.Duration, preferIPVersion string) func(context.Context, string, string) (net.Conn, error) {
 	if timeout <= 0 {
 		timeout = 15 * time.Second
 	}
-	resolver := customResolver()
+	resolver := manager.dnsResolver
 	preferIPVersion = normalizeIPVersionPreference(preferIPVersion)
 
 	return func(ctx context.Context, network, address string) (net.Conn, error) {
@@ -41,7 +27,7 @@ func NewDialContextWithPreference(timeout time.Duration, preferIPVersion string)
 		if err != nil {
 			return nil, err
 		}
-		sortIPsByPreference(ips, preferIPVersion)
+		manager.sortIPsByPreference(ips, preferIPVersion)
 
 		var lastErr error
 		for _, ip := range ips {
@@ -66,9 +52,9 @@ func normalizeIPVersionPreference(preferIPVersion string) string {
 	return ""
 }
 
-func sortIPsByPreference(ips []string, preferIPVersion string) {
+func (manager *Manager) sortIPsByPreference(ips []string, preferIPVersion string) {
 	if preferIPVersion == "" {
-		if preferIPv4First() {
+		if manager.preferIPv4First() {
 			preferIPVersion = "4"
 		} else {
 			preferIPVersion = "6"
@@ -90,8 +76,8 @@ func sortIPsByPreference(ips []string, preferIPVersion string) {
 	copy(ips, append(preferred, others...))
 }
 
-func preferIPv4First() bool {
-	preferV4Once.Do(func() {
+func (manager *Manager) preferIPv4First() bool {
+	manager.preferV4Once.Do(func() {
 		interfaces, err := net.Interfaces()
 		if err != nil {
 			return
@@ -113,11 +99,11 @@ func preferIPv4First() bool {
 					ip = value.IP
 				}
 				if ip != nil && !ip.IsLoopback() && ip.To4() != nil {
-					hasIPv4 = true
+					manager.hasIPv4 = true
 					return
 				}
 			}
 		}
 	})
-	return hasIPv4
+	return manager.hasIPv4
 }
