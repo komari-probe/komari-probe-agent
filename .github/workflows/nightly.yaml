@@ -140,6 +140,9 @@ jobs:
             sha256sum komari-agent-* > checksums.txt
           )
 
+      - name: Verify nightly release assets
+        run: bash scripts/verify-release-assets.sh artifacts
+
       - name: Attest nightly binaries
         uses: actions/attest@v4
         with:
