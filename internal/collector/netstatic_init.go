@@ -27,3 +27,11 @@ func (c *Collector) InitNetStatic() {
 		log.Println("Failed to set netstatic config:", err)
 	}
 }
+
+// Close flushes and stops the traffic-history collector when it was enabled.
+func (c *Collector) Close() error {
+	if c.options.MonthRotate == 0 {
+		return nil
+	}
+	return netstatic.Stop()
+}

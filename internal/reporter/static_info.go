@@ -10,24 +10,27 @@ import (
 	"github.com/komari-probe/komari-probe-agent/internal/version"
 )
 
-func (r *Reporter) RunStaticInfoReporter() {
+func (r *Reporter) RunStaticInfoReporter(ctx context.Context) {
 	ticker := time.NewTicker(time.Duration(r.options.InfoReportInterval) * time.Minute)
-	for range ticker.C {
-		err := r.uploadBasicInfo()
-		if err != nil {
-			log.Println("Error uploading basic info:", err)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			r.UpdateBasicInfo(ctx)
 		}
 	}
 }
-func (r *Reporter) UpdateBasicInfo() {
-	err := r.uploadBasicInfo()
+func (r *Reporter) UpdateBasicInfo(ctx context.Context) {
+	err := r.uploadBasicInfo(ctx)
 	if err != nil {
 		log.Println("Error uploading basic info:", err)
 	} else {
 		log.Println("Basic info uploaded successfully")
 	}
 }
-func (r *Reporter) uploadBasicInfo() error {
+func (r *Reporter) uploadBasicInfo(ctx context.Context) error {
 	cpu := collector.CPUStaticInfo()
 
 	osname := collector.OSName()
@@ -55,5 +58,5 @@ func (r *Reporter) uploadBasicInfo() error {
 	if err != nil {
 		return fmt.Errorf("build basic-info payload: %w", err)
 	}
-	return r.postAndValidateRPC(context.Background(), payload, 30*time.Second)
+	return r.postAndValidateRPC(ctx, payload, 30*time.Second)
 }

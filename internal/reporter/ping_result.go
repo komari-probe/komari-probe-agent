@@ -1,6 +1,7 @@
 package reporter
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -8,7 +9,7 @@ import (
 	"github.com/komari-probe/komari-probe-agent/internal/task"
 )
 
-func (r *Reporter) reportPingTask(conn *connectivity.SafeConn, taskID uint, pingType, pingTarget string) {
+func (r *Reporter) reportPingTask(ctx context.Context, conn *connectivity.SafeConn, taskID uint, pingType, pingTarget string) {
 	if taskID == 0 {
 		log.Printf("Invalid task ID: %d", taskID)
 		return
@@ -19,7 +20,7 @@ func (r *Reporter) reportPingTask(conn *connectivity.SafeConn, taskID uint, ping
 		log.Printf("Ping task %d failed: %v", taskID, err)
 	}
 	payload := buildPingResultPayload(taskID, pingType, pingResult, time.Now())
-	if err := r.sendRPC(conn, payload); err != nil {
+	if err := r.sendRPC(ctx, conn, payload); err != nil {
 		log.Printf("Failed to send ping result: %v", err)
 	}
 }
