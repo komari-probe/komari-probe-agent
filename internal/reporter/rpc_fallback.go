@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	log "github.com/komari-probe/komari-probe-agent/internal/logging"
+	"sync"
 	"time"
 
 	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
@@ -13,10 +14,16 @@ import (
 // runPostFallback exchanges v2 reports over HTTP until WebSocket connectivity returns.
 func (r *Reporter) runPostFallback(ctx context.Context, endpoint string, interval float64) (*connectivity.SafeConn, error) {
 	log.Println("Entering v2 POST fallback mode")
-	pullCtx, cancelPull := context.WithCancel(ctx)
+	fallbackCtx, cancelFallback := context.WithCancel(ctx)
 	pullDone := make(chan struct{})
-	go func() { defer close(pullDone); r.runV2PullLoop(pullCtx) }()
-	defer func() { cancelPull(); <-pullDone }()
+	go func() { defer close(pullDone); r.runV2PullLoop(fallbackCtx) }()
+	var reportWG sync.WaitGroup
+	reportRunning := make(chan struct{}, 1)
+	defer func() {
+		cancelFallback()
+		<-pullDone
+		reportWG.Wait()
+	}()
 
 	reportTicker := time.NewTicker(time.Duration(interval * float64(time.Second)))
 	defer reportTicker.Stop()
@@ -27,7 +34,17 @@ func (r *Reporter) runPostFallback(ctx context.Context, endpoint string, interva
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-reportTicker.C:
-			r.sendFallbackReport(ctx)
+			select {
+			case reportRunning <- struct{}{}:
+				reportWG.Add(1)
+				go func() {
+					defer reportWG.Done()
+					defer func() { <-reportRunning }()
+					r.sendFallbackReport(fallbackCtx)
+				}()
+			default:
+				log.Debugln("Skipping fallback report while the previous request is still running")
+			}
 		case <-reconnectTicker.C:
 			conn, err := r.connectWebSocket(ctx, endpoint)
 			if err == nil {

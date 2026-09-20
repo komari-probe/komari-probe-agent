@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -66,6 +68,77 @@ func TestConnectWebSocketReturnsHTTPStatusError(t *testing.T) {
 	var statusError *HTTPStatusError
 	if !errors.As(err, &statusError) || statusError.StatusCode != http.StatusServiceUnavailable {
 		t.Fatalf("connectWebSocket() error = %v, want HTTP 503 error", err)
+	}
+}
+
+func TestConnectWithFallbackRetriesWebSocket(t *testing.T) {
+	var attempts atomic.Int32
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if attempts.Add(1) == 1 {
+			writer.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		connection, err := upgrader.Upgrade(writer, request, nil)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer connection.Close()
+		_, _, _ = connection.ReadMessage()
+	}))
+	defer server.Close()
+
+	reporter := newConnectionTestReporter(server.URL)
+	reporter.options.MaxRetries = 1
+	reporter.options.ReconnectInterval = 0
+	connection, err := reporter.connectWithFallback(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("connectWithFallback() error = %v", err)
+	}
+	defer connection.Close()
+	if attempts.Load() != 2 {
+		t.Fatalf("WebSocket attempts = %d, want 2", attempts.Load())
+	}
+}
+
+func TestConnectWithFallbackRecoversFromPostFallback(t *testing.T) {
+	var websocketAttempts atomic.Int32
+	var recoveredOnce sync.Once
+	recovered := make(chan struct{})
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if websocket.IsWebSocketUpgrade(request) {
+			if websocketAttempts.Add(1) <= 2 {
+				writer.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
+			recoveredOnce.Do(func() { close(recovered) })
+			connection, err := upgrader.Upgrade(writer, request, nil)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			defer connection.Close()
+			_, _, _ = connection.ReadMessage()
+			return
+		}
+
+		// Keep fallback requests pending until the reconnect succeeds.
+		<-recovered
+	}))
+	defer server.Close()
+
+	reporter := newConnectionTestReporter(server.URL)
+	reporter.options.MaxRetries = 1
+	reporter.options.ReconnectInterval = 1
+	connection, err := reporter.connectWithFallback(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("connectWithFallback() error = %v", err)
+	}
+	defer connection.Close()
+	if websocketAttempts.Load() != 3 {
+		t.Fatalf("WebSocket attempts = %d, want 3", websocketAttempts.Load())
 	}
 }
 
