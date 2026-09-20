@@ -15,9 +15,15 @@ func (r *Reporter) reportPingTask(ctx context.Context, conn *connectivity.SafeCo
 		return
 	}
 
-	pingResult, err := task.Probe(pingType, pingTarget)
+	pingResult, err := task.Probe(ctx, pingType, pingTarget)
 	if err != nil {
+		if ctx.Err() != nil {
+			return
+		}
 		log.Printf("Ping task %d failed: %v", taskID, err)
+	}
+	if ctx.Err() != nil {
+		return
 	}
 	payload := buildPingResultPayload(taskID, pingType, pingResult, time.Now())
 	if err := r.sendRPC(ctx, conn, payload); err != nil {

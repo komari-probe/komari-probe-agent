@@ -13,13 +13,13 @@ import (
 )
 
 // resolveIP 解析域名到 IP 地址，排除 DNS 查询时间
-func resolveIP(target string) (string, error) {
+func resolveIP(ctx context.Context, target string) (string, error) {
 	// 如果已经是 IP 地址，直接返回
 	if ip := net.ParseIP(target); ip != nil {
 		return target, nil
 	}
 	// 解析域名到 IP
-	addrs, err := net.LookupHost(target)
+	addrs, err := net.DefaultResolver.LookupHost(ctx, target)
 	if err != nil {
 		return "", fmt.Errorf("resolve target %q: %w", target, err)
 	}
@@ -29,7 +29,7 @@ func resolveIP(target string) (string, error) {
 	return addrs[0], nil // 返回第一个解析的 IP
 }
 
-func icmpPing(target string, timeout time.Duration) (int64, error) {
+func icmpPing(ctx context.Context, target string, timeout time.Duration) (int64, error) {
 	host, _, err := net.SplitHostPort(target)
 	if err != nil {
 		host = target
@@ -39,7 +39,7 @@ func icmpPing(target string, timeout time.Duration) (int64, error) {
 	host = strings.Trim(host, "[]")
 
 	// 先解析 IP 地址
-	ip, err := resolveIP(host)
+	ip, err := resolveIP(ctx, host)
 	if err != nil {
 		return -1, err
 	}
@@ -51,7 +51,7 @@ func icmpPing(target string, timeout time.Duration) (int64, error) {
 	pinger.Count = 1
 	pinger.Timeout = timeout
 	pinger.SetPrivileged(true)
-	err = pinger.Run()
+	err = pinger.RunWithContext(ctx)
 	if err != nil {
 		return -1, err
 	}
@@ -62,7 +62,7 @@ func icmpPing(target string, timeout time.Duration) (int64, error) {
 	return stats.AvgRtt.Milliseconds(), nil
 }
 
-func tcpPing(target string, timeout time.Duration) (int64, error) {
+func tcpPing(ctx context.Context, target string, timeout time.Duration) (int64, error) {
 	host, port, err := net.SplitHostPort(target)
 	if err != nil {
 		// No port, assume port 80
@@ -73,14 +73,14 @@ func tcpPing(target string, timeout time.Duration) (int64, error) {
 	// If the host is an IPv6 literal, it might be wrapped in brackets.
 	host = strings.Trim(host, "[]")
 
-	ip, err := resolveIP(host)
+	ip, err := resolveIP(ctx, host)
 	if err != nil {
 		return -1, err
 	}
 
 	targetAddr := net.JoinHostPort(ip, port)
 	start := time.Now()
-	conn, err := net.DialTimeout("tcp", targetAddr, timeout)
+	conn, err := (&net.Dialer{Timeout: timeout}).DialContext(ctx, "tcp", targetAddr)
 	if err != nil {
 		return -1, err
 	}
@@ -88,7 +88,7 @@ func tcpPing(target string, timeout time.Duration) (int64, error) {
 	return time.Since(start).Milliseconds(), nil
 }
 
-func httpPing(target string, timeout time.Duration) (int64, error) {
+func httpPing(ctx context.Context, target string, timeout time.Duration) (int64, error) {
 	// Handle raw IPv6 address for URL
 	if strings.Contains(target, ":") && !strings.Contains(target, "[") {
 		// check if it's a valid IP to avoid wrapping hostnames
@@ -109,11 +109,11 @@ func httpPing(target string, timeout time.Duration) (int64, error) {
 			if err != nil {
 				return nil, err
 			}
-			ip, err := resolveIP(host)
+			ip, err := resolveIP(ctx, host)
 			if err != nil {
 				return nil, err
 			}
-			return net.DialTimeout(network, net.JoinHostPort(ip, port), timeout)
+			return (&net.Dialer{Timeout: timeout}).DialContext(ctx, network, net.JoinHostPort(ip, port))
 		},
 	}
 	defer transport.CloseIdleConnections()
@@ -122,8 +122,12 @@ func httpPing(target string, timeout time.Duration) (int64, error) {
 		Timeout:   timeout,
 		Transport: transport,
 	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+	if err != nil {
+		return -1, err
+	}
 	start := time.Now()
-	resp, err := client.Get(target)
+	resp, err := client.Do(req)
 	latency := time.Since(start).Milliseconds()
 	if err != nil {
 		return -1, err
@@ -136,8 +140,9 @@ func httpPing(target string, timeout time.Duration) (int64, error) {
 }
 
 // Probe measures the latency of a single target and returns -1 when probing
-// fails. Sending the result to the panel is the reporter's responsibility.
-func Probe(pingType, pingTarget string) (int, error) {
+// fails or ctx is canceled. Sending the result to the panel is the reporter's
+// responsibility.
+func Probe(ctx context.Context, pingType, pingTarget string) (int, error) {
 	const (
 		timeout                 = 3 * time.Second
 		highLatencyThreshold    = int64(1000)
@@ -146,13 +151,15 @@ func Probe(pingType, pingTarget string) (int, error) {
 	)
 
 	measure := func() (int64, error) {
+		probeCtx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
 		switch pingType {
 		case "icmp":
-			return icmpPing(pingTarget, timeout)
+			return icmpPing(probeCtx, pingTarget, timeout)
 		case "tcp":
-			return tcpPing(pingTarget, timeout)
+			return tcpPing(probeCtx, pingTarget, timeout)
 		case "http":
-			return httpPing(pingTarget, timeout)
+			return httpPing(probeCtx, pingTarget, timeout)
 		default:
 			return -1, errors.New("unsupported ping type")
 		}

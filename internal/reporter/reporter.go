@@ -1,6 +1,7 @@
 package reporter
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -32,6 +33,15 @@ type Reporter struct {
 	v2AckMu       sync.Mutex
 	v2AckEventIDs []string
 	v2SeenEvents  map[string]time.Time
+	pingTasks     sync.WaitGroup
+}
+
+func (r *Reporter) startPingTask(ctx context.Context, conn *connectivity.SafeConn, taskID uint, pingType, pingTarget string) {
+	r.pingTasks.Add(1)
+	go func() {
+		defer r.pingTasks.Done()
+		r.reportPingTask(ctx, conn, taskID, pingType, pingTarget)
+	}()
 }
 
 func New(options Options, hostCollector *collector.Collector, connections *connectivity.Manager) *Reporter {

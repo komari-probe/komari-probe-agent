@@ -14,6 +14,7 @@ import (
 
 // Run sends the initial basic information and maintains the reporting connection.
 func (r *Reporter) Run(ctx context.Context) error {
+	defer r.pingTasks.Wait()
 	r.UpdateBasicInfo(ctx)
 	return r.runWebSocketConnection(ctx)
 }
@@ -21,11 +22,23 @@ func (r *Reporter) Run(ctx context.Context) error {
 // runWebSocketConnection owns the active WebSocket session and its recovery.
 func (r *Reporter) runWebSocketConnection(ctx context.Context) error {
 	var conn *connectivity.SafeConn
-	defer func() {
+	var readDone <-chan struct{}
+	var cancelSession context.CancelFunc
+	closeSession := func() {
+		if cancelSession != nil {
+			cancelSession()
+			cancelSession = nil
+		}
 		if conn != nil {
 			_ = conn.Close()
+			conn = nil
 		}
-	}()
+		if readDone != nil {
+			<-readDone
+			readDone = nil
+		}
+	}
+	defer closeSession()
 
 	interval := math.Max(1, r.options.Interval)
 	dataTicker := time.NewTicker(time.Second)
@@ -35,16 +48,10 @@ func (r *Reporter) runWebSocketConnection(ctx context.Context) error {
 	heartbeatTicker := time.NewTicker(30 * time.Second)
 	defer heartbeatTicker.Stop()
 
-	var readDone <-chan struct{}
 	for {
 		select {
 		case <-ctx.Done():
-			if conn != nil {
-				_ = conn.Close()
-			}
-			if readDone != nil {
-				<-readDone
-			}
+			closeSession()
 			return nil
 		case <-dataTicker.C:
 			if conn == nil {
@@ -58,32 +65,27 @@ func (r *Reporter) runWebSocketConnection(ctx context.Context) error {
 				}
 				done := make(chan struct{})
 				readDone = done
-				go r.handleWebSocketMessages(ctx, conn, done)
+				sessionCtx, sessionCancel := context.WithCancel(ctx)
+				cancelSession = sessionCancel
+				go r.handleWebSocketMessages(sessionCtx, conn, done)
 			}
 			if time.Now().Before(nextReportAt) {
 				continue
 			}
 			nextReportAt = time.Now().Add(reportInterval)
 			if !r.sendPeriodicReport(ctx, conn) {
-				conn = nil
-				readDone = nil
+				closeSession()
 			}
 		case <-heartbeatTicker.C:
 			if conn != nil {
 				if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 					log.Println("Failed to send heartbeat:", err)
-					_ = conn.Close()
-					conn = nil
-					readDone = nil
+					closeSession()
 				}
 			}
 		case <-readDone:
 			log.Println("WebSocket disconnected")
-			if conn != nil {
-				_ = conn.Close()
-				conn = nil
-			}
-			readDone = nil
+			closeSession()
 		}
 	}
 }
