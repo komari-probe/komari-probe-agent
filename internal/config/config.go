@@ -30,6 +30,7 @@ type Config struct {
 	ConfigFile          string  `json:"config_file" env:"AGENT_CONFIG_FILE"`                       // JSON配置文件路径
 	DisableCompression  bool    `json:"disable_compression" env:"AGENT_DISABLE_COMPRESSION"`       // 禁用v2传输压缩
 	PreferIPVersion     string  `json:"prefer_ip_version" env:"AGENT_PREFER_IP_VERSION"`           // 面板连接优先使用的 IP 版本：4 或 6
+	LogLevel            string  `json:"log_level" env:"AGENT_LOG_LEVEL"`                           // 日志最小输出等级
 
 }
 
@@ -41,6 +42,7 @@ func Default() Config {
 		MaxRetries:         3,
 		ReconnectInterval:  5,
 		InfoReportInterval: 5,
+		LogLevel:           "info",
 	}
 }
 
@@ -80,6 +82,11 @@ func (c Config) Validate() error {
 	}
 	if c.PreferIPVersion != "" && c.PreferIPVersion != "4" && c.PreferIPVersion != "6" {
 		return fmt.Errorf("preferred IP version must be 4 or 6")
+	}
+	switch strings.ToLower(c.LogLevel) {
+	case "", "debug", "info", "warn", "warning", "error":
+	default:
+		return fmt.Errorf("log level must be debug, info, warn, or error")
 	}
 	return nil
 }

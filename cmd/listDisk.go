@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"log"
+	log "github.com/komari-probe/komari-probe-agent/internal/logging"
 	"text/tabwriter"
 
 	"github.com/komari-probe/komari-probe-agent/internal/collector"

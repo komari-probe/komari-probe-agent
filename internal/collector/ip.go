@@ -1,8 +1,8 @@
 package collector
 
 import (
+	log "github.com/komari-probe/komari-probe-agent/internal/logging"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"regexp"

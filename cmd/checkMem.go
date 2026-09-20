@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"log"
+	log "github.com/komari-probe/komari-probe-agent/internal/logging"
 
 	"github.com/komari-probe/komari-probe-agent/internal/collector"
 	"github.com/komari-probe/komari-probe-agent/internal/config"

@@ -59,6 +59,7 @@ export AGENT_TOKEN="your-token"
 | `enable_gpu` | `AGENT_ENABLE_GPU` | `--gpu` | 启用详细 GPU 监控 | `1.0.80` |
 | `disable_compression` | `AGENT_DISABLE_COMPRESSION` | `--disable-compression` | 禁用 v2 传输压缩 | `1.2.10` |
 | `prefer_ip_version` | `AGENT_PREFER_IP_VERSION` | `--prefer-ip-version` | 优先使用 IP 版本，可选 `4` 或 `6` | 未发布 |
+| `log_level` | `AGENT_LOG_LEVEL` | `--log-level` | 最低日志等级：`debug`、`info`、`warn`、`error`；默认 `info` | 未发布 |
 
 完整参数可运行：
 

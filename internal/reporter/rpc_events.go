@@ -3,7 +3,7 @@ package reporter
 import (
 	"context"
 	"encoding/json"
-	"log"
+	log "github.com/komari-probe/komari-probe-agent/internal/logging"
 	"time"
 
 	"github.com/komari-probe/komari-probe-agent/internal/connectivity"

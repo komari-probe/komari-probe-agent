@@ -2,7 +2,7 @@ package reporter
 
 import (
 	"context"
-	"log"
+	log "github.com/komari-probe/komari-probe-agent/internal/logging"
 	"time"
 
 	"github.com/komari-probe/komari-probe-agent/internal/connectivity"

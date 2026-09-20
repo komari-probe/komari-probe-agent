@@ -2,7 +2,7 @@ package reporter
 
 import (
 	"context"
-	"log"
+	log "github.com/komari-probe/komari-probe-agent/internal/logging"
 	"math"
 	"strings"
 	"time"
@@ -89,21 +89,21 @@ func (r *Reporter) runWebSocketConnection(ctx context.Context) error {
 }
 
 func (r *Reporter) connectWithFallback(ctx context.Context, interval float64) (*connectivity.SafeConn, error) {
-	log.Println("Attempting to connect to WebSocket...")
+	log.Debugln("Attempting to connect to WebSocket...")
 	endpoint := r.buildWebSocketEndpoint()
 	for retry := 0; retry <= r.options.MaxRetries; retry++ {
 		if retry > 0 {
-			log.Println("Retrying websocket connection, attempt:", retry)
+			log.Debugln("Retrying websocket connection, attempt:", retry)
 		}
 		conn, err := r.connectWebSocket(ctx, endpoint)
 		if err == nil {
-			log.Println("WebSocket connected using v2 protocol")
+			log.Debugln("WebSocket connected using v2 protocol")
 			return conn, nil
 		}
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		log.Println("Failed to connect to WebSocket:", err)
+		log.Debugln("Failed to connect to WebSocket:", err)
 		if !waitForContext(ctx, time.Duration(r.options.ReconnectInterval)*time.Second) {
 			return nil, ctx.Err()
 		}
