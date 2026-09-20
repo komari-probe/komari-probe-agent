@@ -5,14 +5,12 @@ import (
 	"fmt"
 )
 
-func NewNotification(method string, params any) []byte {
-	payload, _ := json.Marshal(Request{JSONRPC: Version, Method: method, Params: params})
-	return payload
+func NewNotification(method string, params any) ([]byte, error) {
+	return json.Marshal(Request{JSONRPC: Version, Method: method, Params: params})
 }
 
-func NewRequest(id any, method string, params any) []byte {
-	payload, _ := json.Marshal(Request{JSONRPC: Version, Method: method, Params: params, ID: id})
-	return payload
+func NewRequest(id any, method string, params any) ([]byte, error) {
+	return json.Marshal(Request{JSONRPC: Version, Method: method, Params: params, ID: id})
 }
 
 func BindParams(raw any, target any) error {

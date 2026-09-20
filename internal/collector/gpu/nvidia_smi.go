@@ -6,6 +6,7 @@ package gpu
 import (
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"strconv"
@@ -40,24 +41,30 @@ func (smi *nvidiaSMI) devices() ([]nvidiaDevice, error) {
 }
 
 func (smi *nvidiaSMI) start() error {
-	if _, err := os.Stat(smi.BinPath); os.IsNotExist(err) {
+	if _, err := os.Stat(smi.BinPath); err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("stat nvidia-smi: %w", err)
+		}
 		binPath, err := exec.LookPath("nvidia-smi")
 		if err != nil {
-			return errors.New("nvidia-smi tool not found")
+			return fmt.Errorf("find nvidia-smi: %w", err)
 		}
 		smi.BinPath = binPath
 	}
-	smi.data = smi.pollnvidiaSMI()
+	data, err := smi.pollnvidiaSMI()
+	if err != nil {
+		return err
+	}
+	smi.data = data
 	return nil
 }
 
-func (smi *nvidiaSMI) pollnvidiaSMI() []byte {
-	cmd := exec.Command(smi.BinPath, "-q", "-x")
-	output, err := cmd.CombinedOutput()
+func (smi *nvidiaSMI) pollnvidiaSMI() ([]byte, error) {
+	output, err := exec.Command(smi.BinPath, "-q", "-x").CombinedOutput()
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("run nvidia-smi: %w", err)
 	}
-	return output
+	return output, nil
 }
 
 func (smi *nvidiaSMI) gatherModel() ([]string, error) {

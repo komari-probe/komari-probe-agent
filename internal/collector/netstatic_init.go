@@ -6,8 +6,9 @@ import (
 	"github.com/komari-probe/komari-probe-agent/internal/collector/netstatic"
 )
 
-// InitNetstatic 在启用了月度重置统计时，启动 netstatic 并同步网卡配置
-func (c *Collector) InitNetstatic() {
+// InitNetStatic starts netstatic when monthly traffic resets are enabled and
+// synchronizes its network-interface configuration.
+func (c *Collector) InitNetStatic() {
 	if c.options.MonthRotate == 0 {
 		return
 	}
@@ -15,12 +16,12 @@ func (c *Collector) InitNetstatic() {
 	if err != nil {
 		log.Println("Failed to start netstatic monitoring:", err)
 	}
-	nics, err := c.InterfaceList()
+	nicNames, err := c.InterfaceList()
 	if err != nil {
 		log.Println("Failed to get interface list for netstatic:", err)
 	}
 	err = netstatic.SetNewConfig(netstatic.NetStaticConfig{
-		NICs: nics,
+		NICs: nicNames,
 	})
 	if err != nil {
 		log.Println("Failed to set netstatic config:", err)

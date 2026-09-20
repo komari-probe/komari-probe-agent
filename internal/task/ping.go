@@ -3,6 +3,7 @@ package task
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -19,8 +20,11 @@ func resolveIP(target string) (string, error) {
 	}
 	// 解析域名到 IP
 	addrs, err := net.LookupHost(target)
-	if err != nil || len(addrs) == 0 {
-		return "", errors.New("failed to resolve target")
+	if err != nil {
+		return "", fmt.Errorf("resolve target %q: %w", target, err)
+	}
+	if len(addrs) == 0 {
+		return "", fmt.Errorf("resolve target %q: no IP addresses returned", target)
 	}
 	return addrs[0], nil // 返回第一个解析的 IP
 }
@@ -128,7 +132,7 @@ func httpPing(target string, timeout time.Duration) (int64, error) {
 	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
 		return latency, nil
 	}
-	return latency, errors.New("http status not ok")
+	return latency, fmt.Errorf("unexpected HTTP status %s", resp.Status)
 }
 
 // Probe measures the latency of a single target and returns -1 when probing

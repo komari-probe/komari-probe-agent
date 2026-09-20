@@ -3,7 +3,6 @@ package reporter
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 
 	"github.com/komari-probe/komari-probe-agent/internal/collector"
 )
@@ -67,18 +66,18 @@ type gpuDeviceReport struct {
 	Temperature uint64  `json:"temperature"`
 }
 
-func (r *Reporter) GenerateReport() []byte {
+func (r *Reporter) GenerateReport() ([]byte, error) {
 	message := ""
 	data := report{}
 
-	cpu := collector.Cpu()
+	cpu := collector.CPU()
 	cpuUsage := cpu.CPUUsage
 	if cpuUsage <= 0.001 {
 		cpuUsage = 0.001
 	}
 	data.CPU = cpuReport{Usage: cpuUsage}
 
-	ram := r.collector.Ram()
+	ram := r.collector.RAM()
 	data.Ram = usageReport{Total: ram.Total, Used: ram.Used}
 
 	swap := collector.Swap()
@@ -144,9 +143,9 @@ func (r *Reporter) GenerateReport() []byte {
 
 	data.Message = message
 
-	s, err := json.Marshal(data)
+	payload, err := json.Marshal(data)
 	if err != nil {
-		log.Println("Failed to marshal data:", err)
+		return nil, fmt.Errorf("marshal performance report: %w", err)
 	}
-	return s
+	return payload, nil
 }

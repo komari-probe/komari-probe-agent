@@ -36,7 +36,7 @@ func newCheckMemCmd(cfg *config.Config) *cobra.Command {
 				log.Printf("Unable to read /proc/meminfo: %v", err)
 			}
 
-			printRamInfo := func(info collector.RamInfo) {
+			printRamInfo := func(info collector.RAMInfo) {
 				log.Printf("[%s] Total: %d bytes (%d MiB), Used: %d bytes (%d MiB)",
 					info.Mode,
 					info.Total, info.Total/(1024*1024),
@@ -44,16 +44,16 @@ func newCheckMemCmd(cfg *config.Config) *cobra.Command {
 				)
 			}
 
-			printRamInfo(collector.GetMemHtopLike())
-			printRamInfo(collector.GetMemGopsutil())
-			printRamInfo(collector.CallFree())
+			printRamInfo(collector.MemoryHtopLike())
+			printRamInfo(collector.MemoryGopsutil())
+			printRamInfo(collector.MemoryFromFree())
 
 			log.Println("--- Current Configured ---")
 			hostCollector := collector.New(collector.Options{
 				MemoryIncludeCache:  cfg.MemoryIncludeCache,
 				MemoryReportRawUsed: cfg.MemoryReportRawUsed,
 			})
-			printRamInfo(hostCollector.Ram())
+			printRamInfo(hostCollector.RAM())
 		},
 	}
 }

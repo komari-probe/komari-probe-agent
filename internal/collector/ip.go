@@ -42,10 +42,12 @@ var (
 		},
 		Timeout: 15 * time.Second,
 	}
-	userAgent = "curl/8.0.1"
+	userAgent   = "curl/8.0.1"
+	ipv4Pattern = regexp.MustCompile(`\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}`)
+	ipv6Pattern = regexp.MustCompile(`(([0-9A-Fa-f]{1,4}:){7})([0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){1,6}:)(([0-9A-Fa-f]{1,4}:){0,4})([0-9A-Fa-f]{0,4})`)
 )
 
-func GetIPv4Address() (string, error) {
+func publicIPv4Address() string {
 
 	webAPIs := []string{
 		"https://www.visa.cn/cdn-cgi/trace",
@@ -58,7 +60,6 @@ func GetIPv4Address() (string, error) {
 	}
 
 	for _, api := range webAPIs {
-		// get ipv4
 		req, err := http.NewRequest("GET", api, nil)
 		if err != nil {
 			continue
@@ -73,17 +74,16 @@ func GetIPv4Address() (string, error) {
 		if err != nil {
 			continue
 		}
-		re := regexp.MustCompile(`\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}`)
-		ipv4 := re.FindString(string(body))
+		ipv4 := ipv4Pattern.FindString(string(body))
 		if ipv4 != "" {
-			log.Printf("Get IPV4 Success: %s", ipv4)
-			return ipv4, nil
+			log.Printf("Found public IPv4 address: %s", ipv4)
+			return ipv4
 		}
 	}
-	return "", nil
+	return ""
 }
 
-func GetIPv6Address() (string, error) {
+func publicIPv6Address() string {
 
 	webAPIs := []string{
 		"https://v6.ip.zxinc.org/info.php?type=json",
@@ -93,7 +93,6 @@ func GetIPv6Address() (string, error) {
 	}
 
 	for _, api := range webAPIs {
-		// get ipv6
 		req, err := http.NewRequest("GET", api, nil)
 		if err != nil {
 			continue
@@ -109,28 +108,26 @@ func GetIPv6Address() (string, error) {
 			continue
 		}
 
-		// 使用正则表达式从响应体中提取IPv6地址
-		re := regexp.MustCompile(`(([0-9A-Fa-f]{1,4}:){7})([0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){1,6}:)(([0-9A-Fa-f]{1,4}:){0,4})([0-9A-Fa-f]{0,4})`)
-		ipv6 := re.FindString(string(body))
+		ipv6 := ipv6Pattern.FindString(string(body))
 		if ipv6 != "" {
-			log.Printf("Get IPV6 Success:  %s", ipv6)
-			return ipv6, nil
+			log.Printf("Found public IPv6 address: %s", ipv6)
+			return ipv6
 		}
 	}
-	return "", nil
+	return ""
 }
 
-func (c *Collector) IPAddresses() (ipv4, ipv6 string, err error) {
+func (c *Collector) IPAddresses() (ipv4, ipv6 string) {
 
 	if c.options.GetIPAddressFromNIC {
-		allowNICs, err := c.InterfaceList()
+		allowedNICs, err := c.InterfaceList()
 		if err != nil {
 			log.Printf("Get Interface List Error: %v", err)
 		} else {
-			ipv4, ipv6 = getIPFromInterfaces(allowNICs)
+			ipv4, ipv6 = getIPFromInterfaces(allowedNICs)
 			if ipv4 != "" || ipv6 != "" {
 				log.Printf("Get IP from NIC - IPv4: %s, IPv6: %s", ipv4, ipv6)
-				return ipv4, ipv6, nil
+				return ipv4, ipv6
 			}
 		}
 	}
@@ -138,23 +135,15 @@ func (c *Collector) IPAddresses() (ipv4, ipv6 string, err error) {
 	if c.options.CustomIPv4 != "" {
 		ipv4 = c.options.CustomIPv4
 	} else {
-		ipv4, err = GetIPv4Address()
-		if err != nil {
-			log.Printf("Get IPV4 Error: %v", err)
-			ipv4 = ""
-		}
+		ipv4 = publicIPv4Address()
 	}
 	if c.options.CustomIPv6 != "" {
 		ipv6 = c.options.CustomIPv6
 	} else {
-		ipv6, err = GetIPv6Address()
-		if err != nil {
-			log.Printf("Get IPV6 Error: %v", err)
-			ipv6 = ""
-		}
+		ipv6 = publicIPv6Address()
 	}
 
-	return ipv4, ipv6, nil
+	return ipv4, ipv6
 }
 
 // getIPFromInterfaces 从指定的网卡接口获取 IPv4 和 IPv6 地址
@@ -166,14 +155,7 @@ func getIPFromInterfaces(nicNames []string) (ipv4, ipv6 string) {
 	}
 	for _, iface := range interfaces {
 		// 检查接口是否在允许列表中
-		if !func(slice []string, item string) bool {
-			for _, s := range slice {
-				if s == item {
-					return true
-				}
-			}
-			return false
-		}(nicNames, iface.Name) {
+		if !containsString(nicNames, iface.Name) {
 			continue
 		}
 
@@ -218,4 +200,13 @@ func getIPFromInterfaces(nicNames []string) (ipv4, ipv6 string) {
 	}
 
 	return ipv4, ipv6
+}
+
+func containsString(values []string, value string) bool {
+	for _, candidate := range values {
+		if candidate == value {
+			return true
+		}
+	}
+	return false
 }

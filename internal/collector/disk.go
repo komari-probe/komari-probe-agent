@@ -2,6 +2,7 @@ package collector
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/shirou/gopsutil/v4/disk"
@@ -13,12 +14,12 @@ type DiskInfo struct {
 }
 
 func (c *Collector) Disk() DiskInfo {
-	diskinfo := DiskInfo{}
+	diskInfo := DiskInfo{}
 	// 获取所有分区，使用 true 避免物理磁盘被 gopsutil 错误排除
 	usage, err := disk.Partitions(true)
 	if err != nil {
-		diskinfo.Total = 0
-		diskinfo.Used = 0
+		diskInfo.Total = 0
+		diskInfo.Used = 0
 	} else {
 		// 如果指定了自定义挂载点，只统计指定的挂载点
 		if c.options.IncludeMountpoints != "" {
@@ -30,8 +31,8 @@ func (c *Collector) Disk() DiskInfo {
 					if err != nil {
 						continue
 					} else {
-						diskinfo.Total += u.Total
-						diskinfo.Used += u.Used
+						diskInfo.Total += u.Total
+						diskInfo.Used += u.Used
 					}
 				}
 			}
@@ -67,12 +68,12 @@ func (c *Collector) Disk() DiskInfo {
 			}
 
 			for _, u := range deviceMap {
-				diskinfo.Total += u.Total
-				diskinfo.Used += u.Used
+				diskInfo.Total += u.Total
+				diskInfo.Used += u.Used
 			}
 		}
 	}
-	return diskinfo
+	return diskInfo
 }
 
 // isPhysicalDisk 判断分区是否为物理磁盘
@@ -83,7 +84,7 @@ func isPhysicalDisk(part disk.PartitionStat) bool {
 	}
 	mountpoint := strings.ToLower(part.Mountpoint)
 	// 排除挂载点
-	var mountpointsToExcludePerfix = []string{
+	excludedMountpointPrefixes := []string{
 		"/tmp",
 		"/var/tmp",
 		"/dev",
@@ -97,7 +98,7 @@ func isPhysicalDisk(part disk.PartitionStat) bool {
 		"/etc/host", // /etc/hosts,/etc/hostname
 		"/nix/store",
 	}
-	for _, mp := range mountpointsToExcludePerfix {
+	for _, mp := range excludedMountpointPrefixes {
 		if mountpoint == mp || strings.HasPrefix(mountpoint, mp) {
 			return false
 		}
@@ -122,7 +123,7 @@ func isPhysicalDisk(part disk.PartitionStat) bool {
 		return true
 	}
 
-	var fstypeToExclude = []string{
+	excludedFilesystemTypes := []string{
 		"tmpfs",
 		"devtmpfs",
 		"udev",
@@ -144,15 +145,15 @@ func isPhysicalDisk(part disk.PartitionStat) bool {
 		"securityfs",
 		"nullfs",
 	}
-	for _, fs := range fstypeToExclude {
+	for _, fs := range excludedFilesystemTypes {
 		if fstype == fs || strings.HasPrefix(fstype, fs) {
 			return false
 		}
 	}
 	// Windows 网络驱动器通常是映射盘符，但不容易通过fstype判断
 	// 可以通过opts判断，Windows网络驱动通常有相关选项
-	optsStr := strings.ToLower(strings.Join(part.Opts, ","))
-	if strings.Contains(optsStr, "remote") || strings.Contains(optsStr, "network") {
+	mountOptions := strings.ToLower(strings.Join(part.Opts, ","))
+	if strings.Contains(mountOptions, "remote") || strings.Contains(mountOptions, "network") {
 		return false
 	}
 
@@ -207,5 +208,6 @@ func (c *Collector) DiskList() ([]string, error) {
 			diskList = append(diskList, fmt.Sprintf("%s (%s)", part.Mountpoint, part.Fstype))
 		}
 	}
+	sort.Strings(diskList)
 	return diskList, nil
 }

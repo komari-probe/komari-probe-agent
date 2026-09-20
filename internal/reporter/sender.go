@@ -28,7 +28,7 @@ func (e *HTTPStatusError) Error() string {
 		return ""
 	}
 	if e.Body != "" {
-		return fmt.Sprintf("status code: %d,%s", e.StatusCode, e.Body)
+		return fmt.Sprintf("status code %d: %s", e.StatusCode, e.Body)
 	}
 	if e.Status != "" {
 		return e.Status
@@ -73,10 +73,12 @@ func (r *Reporter) postRPCPayload(ctx context.Context, payload []byte, timeout t
 	body := payload
 	compressed := false
 	if !r.options.DisableCompression {
-		if gz, err := gzipPayload(payload); err == nil {
-			body = gz
-			compressed = true
+		gz, err := gzipPayload(payload)
+		if err != nil {
+			return nil, fmt.Errorf("compress RPC payload: %w", err)
 		}
+		body = gz
+		compressed = true
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
