@@ -245,6 +245,26 @@ func TestNetworkSpeedSamplesAreCollectorScoped(t *testing.T) {
 	}
 }
 
+func TestSafeCounterDelta(t *testing.T) {
+	tests := []struct {
+		name     string
+		current  uint64
+		previous uint64
+		want     uint64
+	}{
+		{name: "increasing counter", current: 120, previous: 100, want: 20},
+		{name: "counter reset does not create a false spike", current: 10, previous: 100, want: 0},
+		{name: "unchanged counter", current: 100, previous: 100, want: 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := safeCounterDelta(tt.current, tt.previous); got != tt.want {
+				t.Fatalf("safeCounterDelta(%d, %d) = %d, want %d", tt.current, tt.previous, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestNetworkSpeedWithoutMonthRotate(t *testing.T) {
 	hostCollector := New(Options{MonthRotate: 1})
 	totalUp, totalDown, upSpeed, downSpeed, err := hostCollector.NetworkSpeed()

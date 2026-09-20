@@ -27,9 +27,56 @@ func Run(cfg config.Config) error {
 }
 
 func run(ctx context.Context, cfg config.Config) error {
+	return runWithFactory(ctx, cfg, buildRuntime)
+}
+
+type runtime interface {
+	Run(context.Context) error
+	Close() error
+}
+
+type runtimeFactory func(context.Context, config.Config) (runtime, error)
+
+func runWithFactory(ctx context.Context, cfg config.Config, newRuntime runtimeFactory) error {
 	if err := cfg.Validate(); err != nil {
 		return fmt.Errorf("invalid configuration: %w", err)
 	}
+	agentRuntime, err := newRuntime(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := agentRuntime.Close(); err != nil {
+			log.Printf("save network traffic statistics during shutdown: %v", err)
+		}
+	}()
+
+	err = agentRuntime.Run(ctx)
+	if ctx.Err() != nil {
+		log.Println("Agent shutdown complete")
+		return nil
+	}
+	return err
+}
+
+type collectorRuntime interface {
+	InitNetStatic()
+	Close() error
+	DiskList() ([]string, error)
+	InterfaceList() ([]string, error)
+}
+
+type reporterRuntime interface {
+	Run(context.Context) error
+	RunStaticInfoReporter(context.Context)
+}
+
+type agentRuntime struct {
+	collector collectorRuntime
+	reporter  reporterRuntime
+}
+
+func buildRuntime(ctx context.Context, cfg config.Config) (runtime, error) {
 	connections := connectivity.NewManager(connectivity.Options{CustomDNSServer: cfg.CustomDNS})
 	if cfg.CustomDNS != "" {
 		log.Printf("Using custom DNS server: %s", cfg.CustomDNS)
@@ -41,7 +88,7 @@ func run(ctx context.Context, cfg config.Config) error {
 		var err error
 		cfg, err = discovery.ResolveAutoDiscovery(ctx, cfg, connections)
 		if err != nil {
-			return fmt.Errorf("auto-discovery failed: %w", err)
+			return nil, fmt.Errorf("auto-discovery failed: %w", err)
 		}
 	}
 
@@ -72,20 +119,19 @@ func run(ctx context.Context, cfg config.Config) error {
 		EnableGPU:          cfg.EnableGPU,
 	}, hostCollector, connections)
 
-	hostCollector.InitNetStatic()
-	defer func() {
-		if err := hostCollector.Close(); err != nil {
-			log.Printf("save network traffic statistics during shutdown: %v", err)
-		}
-	}()
 	log.Println("Komari Probe Agent", version.CurrentVersion)
+	return &agentRuntime{collector: hostCollector, reporter: agentReporter}, nil
+}
 
-	diskList, err := hostCollector.DiskList()
+func (r *agentRuntime) Run(ctx context.Context) error {
+	r.collector.InitNetStatic()
+
+	diskList, err := r.collector.DiskList()
 	if err != nil {
 		log.Println("Failed to get disk list:", err)
 	}
 	log.Println("Monitoring Mountpoints:", diskList)
-	interfaceList, err := hostCollector.InterfaceList()
+	interfaceList, err := r.collector.InterfaceList()
 	if err != nil {
 		log.Println("Failed to get interface list:", err)
 	}
@@ -98,15 +144,15 @@ func run(ctx context.Context, cfg config.Config) error {
 	staticInfoWG.Add(1)
 	go func() {
 		defer staticInfoWG.Done()
-		agentReporter.RunStaticInfoReporter(runCtx)
+		r.reporter.RunStaticInfoReporter(runCtx)
 	}()
 
-	err = agentReporter.Run(runCtx)
+	err = r.reporter.Run(runCtx)
 	cancel()
 	staticInfoWG.Wait()
-	if ctx.Err() != nil {
-		log.Println("Agent shutdown complete")
-		return nil
-	}
 	return err
+}
+
+func (r *agentRuntime) Close() error {
+	return r.collector.Close()
 }

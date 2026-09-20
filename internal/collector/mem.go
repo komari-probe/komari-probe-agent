@@ -3,6 +3,7 @@ package collector
 import (
 	"bufio"
 	"bytes"
+	"io"
 	"os"
 	"os/exec"
 	"runtime"
@@ -40,9 +41,12 @@ func ReadProcMeminfo() (*ProcMemInfo, error) {
 		return nil, err
 	}
 	defer file.Close()
+	return parseProcMeminfo(file)
+}
 
+func parseProcMeminfo(reader io.Reader) (*ProcMemInfo, error) {
 	info := &ProcMemInfo{}
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		line := scanner.Text()
 		parts := strings.Fields(line)
