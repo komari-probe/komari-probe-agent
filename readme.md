@@ -66,4 +66,4 @@ export AGENT_TOKEN="your-token"
 ./komari-agent --help
 ```
 
-详见 `cmd/flags/flags.go` 及 `cmd/root.go`
+实现详见 `cmd/root.go` 与 `internal/config/`。
