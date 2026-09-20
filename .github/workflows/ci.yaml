@@ -93,6 +93,15 @@ jobs:
           version: "~> v2"
           args: release --snapshot --clean
 
+      - name: Verify release checksums
+        shell: bash
+        run: |
+          bash scripts/flatten-goreleaser-output.sh build
+          (
+            cd build
+            sha256sum --check checksums.txt
+          )
+
   workflow-and-script-check:
     if: ${{ github.event_name != 'schedule' }}
     name: Workflow and script checks

@@ -91,12 +91,19 @@ if (-not $nssmCmd) {
     Log-Info "nssm not found or not usable. Attempting to download to $InstallDir..."
     $NssmVersion = "2.24"
     $NssmZipUrl = "https://nssm.cc/release/nssm-$NssmVersion.zip"
+    # SHA-256 verified from the official NSSM 2.24 release archive.
+    $NssmZipSha256 = "727D1E42275C605E0F04ABA98095C38A8E1E46DEF453CDFFCE42869428AA6743"
     $TempNssmZipPath = Join-Path $env:TEMP "nssm-$NssmVersion.zip"
     $TempExtractDir = Join-Path $env:TEMP "nssm_extract_temp"
 
     try {
         Log-Info "Downloading nssm from $NssmZipUrl..."
         Invoke-WebRequest -Uri $NssmZipUrl -OutFile $TempNssmZipPath -UseBasicParsing
+        $nssmArchiveHash = (Get-FileHash -LiteralPath $TempNssmZipPath -Algorithm SHA256).Hash
+        if (-not $nssmArchiveHash.Equals($NssmZipSha256, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "SHA-256 verification failed for nssm-$NssmVersion.zip."
+        }
+        Log-Success "NSSM archive SHA-256 checksum verified."
 
         if (Test-Path $TempExtractDir) { Remove-Item -Recurse -Force $TempExtractDir }
         New-Item -ItemType Directory -Path $TempExtractDir -Force | Out-Null
@@ -203,7 +210,6 @@ function Uninstall-Previous {
         Remove-Item $AgentPath -Force
     }
 }
-Uninstall-Previous
 
 function Get-LatestSnapshotVersion {
     param([Parameter(Mandatory = $true)][string]$AssetName)
@@ -283,18 +289,53 @@ Log-Success "Installing Komari Agent version: $versionToInstall"
 # Construct download URL
 $BinaryName = "komari-agent-windows-$arch.exe"
 $DownloadUrl = if ($GitHubProxy) { "$GitHubProxy/https://github.com/komari-probe/komari-probe-agent/releases/download/$versionToInstall/$BinaryName" } else { "https://github.com/komari-probe/komari-probe-agent/releases/download/$versionToInstall/$BinaryName" }
+$ChecksumUrl = "https://github.com/komari-probe/komari-probe-agent/releases/download/$versionToInstall/checksums.txt"
+$TemporaryAgentPath = Join-Path $env:TEMP "komari-agent-$([guid]::NewGuid().ToString('N')).download"
+$TemporaryChecksumPath = Join-Path $env:TEMP "komari-agent-$([guid]::NewGuid().ToString('N')).checksums"
+$agentVerified = $false
 
-# Download and install
+# Download and verify before changing an existing installation. The binary may
+# come through a user-selected proxy, but the checksum manifest is always read
+# directly from the official GitHub release.
 New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
 Log-Info "URL: $DownloadUrl"
 try {
-    Invoke-WebRequest -Uri $DownloadUrl -OutFile $AgentPath -UseBasicParsing
+    Invoke-WebRequest -Uri $ChecksumUrl -OutFile $TemporaryChecksumPath -UseBasicParsing
+    $checksumPattern = "^(?<hash>[A-Fa-f0-9]{64})\s+\*?$([regex]::Escape($BinaryName))$"
+    $checksumLines = @(Get-Content -LiteralPath $TemporaryChecksumPath | Where-Object { $_ -match $checksumPattern })
+    if ($checksumLines.Count -ne 1) {
+        throw "No unique SHA-256 checksum was found for $BinaryName."
+    }
+    $expectedHash = ([regex]::Match($checksumLines[0], $checksumPattern)).Groups['hash'].Value
+
+    Invoke-WebRequest -Uri $DownloadUrl -OutFile $TemporaryAgentPath -UseBasicParsing
+    $actualHash = (Get-FileHash -LiteralPath $TemporaryAgentPath -Algorithm SHA256).Hash
+    if (-not $actualHash.Equals($expectedHash, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "SHA-256 verification failed for $BinaryName."
+    }
+    $agentVerified = $true
 }
 catch {
-    Log-Error "Download failed: $_"
+    Log-Error "Download or SHA-256 verification failed: $_"
     exit 1
 }
-Log-Success "Downloaded and saved to $AgentPath"
+finally {
+    if (Test-Path $TemporaryChecksumPath) { Remove-Item $TemporaryChecksumPath -Force -ErrorAction SilentlyContinue }
+    if (-not $agentVerified -and (Test-Path $TemporaryAgentPath)) { Remove-Item $TemporaryAgentPath -Force -ErrorAction SilentlyContinue }
+}
+Log-Success "SHA-256 checksum verified."
+
+# Do not disrupt a working service until the replacement is verified.
+Uninstall-Previous
+try {
+    Move-Item -LiteralPath $TemporaryAgentPath -Destination $AgentPath -Force
+}
+catch {
+    if (Test-Path $TemporaryAgentPath) { Remove-Item $TemporaryAgentPath -Force -ErrorAction SilentlyContinue }
+    Log-Error "Failed to install the verified agent binary: $_"
+    exit 1
+}
+Log-Success "Downloaded, verified, and saved to $AgentPath"
 
 # Register and start service
 Log-Step "Configuring Windows service with nssm..."

@@ -214,9 +214,6 @@ uninstall_previous() {
     fi
 }
 
-# Uninstall previous installation
-uninstall_previous
-
 install_dependencies() {
     log_step "Checking and installing dependencies..."
 
@@ -389,10 +386,50 @@ else
     download_url="https://github.com/komari-probe/komari-probe-agent/releases/${download_path}/${file_name}"
 fi
 
+# Always obtain the checksum manifest directly from GitHub.  Mirrors may be
+# useful for downloading a large binary, but must not be trusted to provide
+# its expected hash.
+checksum_url="https://github.com/komari-probe/komari-probe-agent/releases/${download_path}/checksums.txt"
+
+verify_sha256() {
+    expected_checksum=$1
+    target_file=$2
+
+    if command -v sha256sum >/dev/null 2>&1; then
+        actual_checksum=$(sha256sum "$target_file" | awk '{print $1}')
+    elif command -v shasum >/dev/null 2>&1; then
+        actual_checksum=$(shasum -a 256 "$target_file" | awk '{print $1}')
+    elif command -v openssl >/dev/null 2>&1; then
+        actual_checksum=$(openssl dgst -sha256 "$target_file" | awk '{print $NF}')
+    else
+        log_error "No SHA-256 tool found (sha256sum, shasum, or openssl is required)."
+        return 1
+    fi
+
+    [ "$actual_checksum" = "$expected_checksum" ]
+}
+
 log_step "Creating installation directory: ${GREEN}$target_dir${NC}"
 mkdir -p "$target_dir"
 if [ "$EUID" -eq 0 ] && [ "$service_user" != "root" ]; then
     chown "$service_user" "$target_dir"
+fi
+
+checksum_path="${target_dir}/.${service_name}.checksums.$$"
+downloaded_path="${target_dir}/.${service_name}.download.$$"
+
+log_step "Downloading official checksum manifest..."
+if ! curl -fsSL --connect-timeout 15 -o "$checksum_path" "$checksum_url"; then
+    rm -f "$checksum_path"
+    log_error "Failed to download the official checksum manifest."
+    exit 1
+fi
+
+expected_checksum=$(awk -v name="$file_name" '$2 == name || $2 == "*" name { print $1 }' "$checksum_path")
+rm -f "$checksum_path"
+if [ -z "$expected_checksum" ] || [ "$(printf '%s\n' "$expected_checksum" | wc -l | tr -d ' ')" -ne 1 ]; then
+    log_error "No unique SHA-256 checksum was found for $file_name."
+    exit 1
 fi
 
 # Download with automatic mirror fallback.
@@ -412,11 +449,11 @@ dl_ok=""
 for u in $download_urls; do
     log_step "Downloading $file_name ..."
     log_info "URL: ${CYAN}$u${NC}"
-    if curl -fL --connect-timeout 15 -o "$komari_agent_path" "$u" && [ -s "$komari_agent_path" ]; then
+    if curl -fL --connect-timeout 15 -o "$downloaded_path" "$u" && [ -s "$downloaded_path" ]; then
         dl_ok=1
         break
     fi
-    rm -f "$komari_agent_path"
+    rm -f "$downloaded_path"
 done
 
 if [ -z "$dl_ok" ]; then
@@ -424,6 +461,17 @@ if [ -z "$dl_ok" ]; then
     log_error "Retry later, or specify --install-ghproxy <mirror-prefix> manually"
     exit 1
 fi
+
+if ! verify_sha256 "$expected_checksum" "$downloaded_path"; then
+    rm -f "$downloaded_path"
+    log_error "SHA-256 verification failed for $file_name. Installation aborted."
+    exit 1
+fi
+log_success "SHA-256 checksum verified."
+
+# Do not disrupt a working installation until the replacement is verified.
+uninstall_previous
+mv "$downloaded_path" "$komari_agent_path"
 
 # Set executable permissions
 chmod +x "$komari_agent_path"
@@ -800,5 +848,4 @@ fi
 log_config "Service: ${GREEN}$service_name${NC}"
 log_config "Arguments: ${GREEN}$komari_args${NC}"
 echo -e "${WHITE}===========================================${NC}"
-
 
