@@ -113,14 +113,7 @@ func getNvidiaDetailedInfo() ([]Device, error) {
 
 	var gpuInfos []Device
 	for _, nvidiaInfo := range data {
-		gpuInfo := Device{
-			Name:        nvidiaInfo.Name,
-			MemoryTotal: nvidiaInfo.MemoryTotal,
-			MemoryUsed:  nvidiaInfo.MemoryUsed,
-			Utilization: nvidiaInfo.Utilization,
-			Temperature: nvidiaInfo.Temperature,
-		}
-		gpuInfos = append(gpuInfos, gpuInfo)
+		gpuInfos = append(gpuInfos, Device(nvidiaInfo))
 	}
 
 	return gpuInfos, nil
@@ -158,13 +151,7 @@ func getAMDROCmDetailedInfo() ([]Device, error) {
 
 	var gpuInfos []Device
 	for _, amdInfo := range data {
-		gpuInfos = append(gpuInfos, Device{
-			Name:        amdInfo.Name,
-			MemoryTotal: amdInfo.MemoryTotal,
-			MemoryUsed:  amdInfo.MemoryUsed,
-			Utilization: amdInfo.Utilization,
-			Temperature: amdInfo.Temperature,
-		})
+		gpuInfos = append(gpuInfos, Device(amdInfo))
 	}
 	return gpuInfos, nil
 }

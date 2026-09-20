@@ -31,7 +31,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: "1.25.13"
 
       - name: Run tests
         run: go test ./...
@@ -53,7 +53,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: "1.25.13"
 
       - name: Verify Go formatting
         shell: bash
@@ -84,7 +84,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: "1.25.13"
 
       - name: Validate GoReleaser configuration and build targets
         uses: goreleaser/goreleaser-action@v7
@@ -104,7 +104,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: "1.25.13"
 
       - name: Run actionlint
         run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/*.yaml
@@ -119,17 +119,6 @@ jobs:
       - name: Run ShellCheck
         run: shellcheck -s sh -S error install.sh scripts/flatten-goreleaser-output.sh
 
-      - name: Run PSScriptAnalyzer
-        shell: pwsh
-        run: |
-          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
-          $findings = Invoke-ScriptAnalyzer -Path install.ps1 -Recurse -Severity Warning,Error
-          if ($findings) {
-            $findings | Format-Table -AutoSize
-            exit 1
-          }
-
   dependency-security:
     name: Dependency security
     runs-on: ubuntu-latest
@@ -140,9 +129,26 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: "1.25.13"
 
       - name: Run govulncheck
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
           govulncheck ./...
+
+  powershell-script-check:
+    name: PowerShell script checks
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+          $findings = Invoke-ScriptAnalyzer -Path install.ps1 -Recurse -Severity Warning,Error
+          if ($findings) {
+            $findings | Format-Table -AutoSize
+            exit 1
+          }
