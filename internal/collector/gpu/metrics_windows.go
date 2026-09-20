@@ -31,13 +31,7 @@ func Devices() ([]Device, error) {
 
 	gpuInfos := make([]Device, len(data))
 	for i, nvidiaInfo := range data {
-		gpuInfos[i] = Device{
-			Name:        nvidiaInfo.Name,
-			MemoryTotal: nvidiaInfo.MemoryTotal,
-			MemoryUsed:  nvidiaInfo.MemoryUsed,
-			Utilization: nvidiaInfo.Utilization,
-			Temperature: nvidiaInfo.Temperature,
-		}
+		gpuInfos[i] = Device(nvidiaInfo)
 	}
 
 	return gpuInfos, nil

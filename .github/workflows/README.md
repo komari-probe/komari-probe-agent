@@ -36,6 +36,9 @@ the branch head. Do not use it for nightly tags.
 - The Dockerfile requires `komari-agent-linux-amd64` and
   `komari-agent-linux-arm64` in its build context.
 - The version is embedded through `internal/version.CurrentVersion`.
+- Workflows build with Go 1.25.13, the current patch release that fixes the
+  reachable standard-library vulnerabilities found by `govulncheck`; `go.mod`
+  still records the minimum supported Go version.
 - `checksums.txt` is regenerated after GoReleaser's layout is flattened, so it
   hashes the exact files uploaded to GitHub Releases.
 - Release and nightly binaries receive signed GitHub artifact attestations;

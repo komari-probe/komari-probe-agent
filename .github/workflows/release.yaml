@@ -55,7 +55,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: "1.25.13"
 
       - name: Build release assets
         uses: goreleaser/goreleaser-action@v7
