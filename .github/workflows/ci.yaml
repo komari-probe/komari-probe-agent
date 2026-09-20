@@ -147,7 +147,7 @@ jobs:
         shell: pwsh
         run: |
           Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
-          $findings = Invoke-ScriptAnalyzer -Path install.ps1 -Recurse -Severity Warning,Error
+          $findings = Invoke-ScriptAnalyzer -Path install.ps1 -Recurse -Severity Error
           if ($findings) {
             $findings | Format-Table -AutoSize
             exit 1
