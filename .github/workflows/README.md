@@ -41,6 +41,8 @@ the branch head. Do not use it for nightly tags.
   still records the minimum supported Go version.
 - `checksums.txt` is regenerated after GoReleaser's layout is flattened, so it
   hashes the exact files uploaded to GitHub Releases.
+- CI verifies that the binaries and checksum manifest contain exactly the
+  supported target matrix before assets are attested or uploaded.
 - Release and nightly binaries receive signed GitHub artifact attestations;
   published container images receive signed registry attestations. Verify a
   downloaded binary with `gh attestation verify <file> --repo

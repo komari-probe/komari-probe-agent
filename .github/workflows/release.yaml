@@ -69,6 +69,9 @@ jobs:
       - name: Flatten binary names
         run: bash scripts/flatten-goreleaser-output.sh build
 
+      - name: Verify release assets
+        run: bash scripts/verify-release-assets.sh build
+
       - name: Attest release binaries
         uses: actions/attest@v4
         with:
