@@ -1,53 +1,21 @@
 package collector
 
 import (
-	"context"
 	"io"
 	"log"
 	"net"
 	"net/http"
 	"regexp"
 	"time"
-
-	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
 )
 
 var (
-	// 创建适用于IPv4和IPv6的HTTP客户端
-	ipv4HTTPClient = &http.Client{
-		Transport: &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				dialer := connectivity.NewNetDialer(15 * time.Second)
-				return dialer.DialContext(ctx, "tcp4", addr) // 锁v4防止出现问题
-			},
-			MaxIdleConns:          10,
-			IdleConnTimeout:       30 * time.Second,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
-		Timeout: 15 * time.Second,
-	}
-	ipv6HTTPClient = &http.Client{
-		Transport: &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				dialer := connectivity.NewNetDialer(15 * time.Second)
-				return dialer.DialContext(ctx, "tcp6", addr) // 锁v6防止出现问题
-			},
-			MaxIdleConns:          10,
-			IdleConnTimeout:       30 * time.Second,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
-		Timeout: 15 * time.Second,
-	}
 	userAgent   = "curl/8.0.1"
 	ipv4Pattern = regexp.MustCompile(`\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}`)
 	ipv6Pattern = regexp.MustCompile(`(([0-9A-Fa-f]{1,4}:){7})([0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){1,6}:)(([0-9A-Fa-f]{1,4}:){0,4})([0-9A-Fa-f]{0,4})`)
 )
 
-func publicIPv4Address() string {
+func (c *Collector) publicIPv4Address() string {
 
 	webAPIs := []string{
 		"https://www.visa.cn/cdn-cgi/trace",
@@ -65,7 +33,7 @@ func publicIPv4Address() string {
 			continue
 		}
 		req.Header.Set("User-Agent", userAgent)
-		resp, err := ipv4HTTPClient.Do(req)
+		resp, err := c.connections.NewHTTPClientWithPreference(15*time.Second, "4", c.options.IgnoreUnsafeCert).Do(req)
 		if err != nil {
 			continue
 		}
@@ -83,7 +51,7 @@ func publicIPv4Address() string {
 	return ""
 }
 
-func publicIPv6Address() string {
+func (c *Collector) publicIPv6Address() string {
 
 	webAPIs := []string{
 		"https://v6.ip.zxinc.org/info.php?type=json",
@@ -98,7 +66,7 @@ func publicIPv6Address() string {
 			continue
 		}
 		req.Header.Set("User-Agent", userAgent)
-		resp, err := ipv6HTTPClient.Do(req)
+		resp, err := c.connections.NewHTTPClientWithPreference(15*time.Second, "6", c.options.IgnoreUnsafeCert).Do(req)
 		if err != nil {
 			continue
 		}
@@ -135,12 +103,12 @@ func (c *Collector) IPAddresses() (ipv4, ipv6 string) {
 	if c.options.CustomIPv4 != "" {
 		ipv4 = c.options.CustomIPv4
 	} else {
-		ipv4 = publicIPv4Address()
+		ipv4 = c.publicIPv4Address()
 	}
 	if c.options.CustomIPv6 != "" {
 		ipv6 = c.options.CustomIPv6
 	} else {
-		ipv6 = publicIPv6Address()
+		ipv6 = c.publicIPv6Address()
 	}
 
 	return ipv4, ipv6

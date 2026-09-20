@@ -1,6 +1,9 @@
 package collector
 
-import "github.com/komari-probe/komari-probe-agent/internal/collector/netstatic"
+import (
+	"github.com/komari-probe/komari-probe-agent/internal/collector/netstatic"
+	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
+)
 
 // Options contains the collection-specific portion of the Agent configuration.
 // A Collector owns an immutable copy for the duration of one Agent run.
@@ -15,18 +18,26 @@ type Options struct {
 	CustomIPv6          string
 	GetIPAddressFromNIC bool
 	HostProc            string
+	Connectivity        *connectivity.Manager
+	IgnoreUnsafeCert    bool
 }
 
 // Collector gathers host metrics using the supplied runtime options.
 type Collector struct {
 	options        Options
+	connections    *connectivity.Manager
 	networkSpeed   networkSpeedState
 	trafficTracker *netstatic.Tracker
 }
 
 func New(options Options) *Collector {
+	connections := options.Connectivity
+	if connections == nil {
+		connections = connectivity.NewManager(connectivity.Options{})
+	}
 	return &Collector{
 		options:        options,
+		connections:    connections,
 		trafficTracker: netstatic.NewTracker(""),
 	}
 }

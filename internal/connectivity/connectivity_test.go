@@ -21,8 +21,9 @@ func TestNormalizeDNSServer(t *testing.T) {
 }
 
 func TestSortIPsByPreference(t *testing.T) {
+	manager := NewManager(Options{})
 	ips := []string{"2001:db8::1", "192.0.2.1", "2001:db8::2", "192.0.2.2"}
-	sortIPsByPreference(ips, "4")
+	manager.sortIPsByPreference(ips, "4")
 	want := []string{"192.0.2.1", "192.0.2.2", "2001:db8::1", "2001:db8::2"}
 	if !reflect.DeepEqual(ips, want) {
 		t.Errorf("sortIPsByPreference() = %v, want %v", ips, want)
@@ -30,7 +31,8 @@ func TestSortIPsByPreference(t *testing.T) {
 }
 
 func TestNewWebSocketDialer(t *testing.T) {
-	dialer := NewWebSocketDialer(WebSocketDialerOptions{
+	manager := NewManager(Options{})
+	dialer := manager.NewWebSocketDialer(WebSocketDialerOptions{
 		HandshakeTimeout:  7 * time.Second,
 		DialTimeout:       9 * time.Second,
 		PreferIPVersion:   "4",

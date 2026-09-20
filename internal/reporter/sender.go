@@ -90,7 +90,7 @@ func (r *Reporter) postRPCPayload(ctx context.Context, payload []byte, timeout t
 		req.Header.Set("Content-Encoding", "gzip")
 	}
 
-	client := connectivity.NewHTTPClientWithPreference(timeout, r.options.PreferIPVersion, r.options.IgnoreUnsafeCert)
+	client := r.connections.NewHTTPClientWithPreference(timeout, r.options.PreferIPVersion, r.options.IgnoreUnsafeCert)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
