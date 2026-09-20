@@ -102,7 +102,6 @@ if (-not $nssmCmd) {
         New-Item -ItemType Directory -Path $TempExtractDir -Force | Out-Null
         Expand-Archive -Path $TempNssmZipPath -DestinationPath $TempExtractDir -Force
         
-        $NssmSourceDirInsideZip = "nssm-$NssmVersion" # Used for Get-ChildItem search path
         # The path part within the extracted nssm folder, e.g., "nssm-2.24\win32"
         # 'win32' nssm is used for both 'amd64' and 'arm64' PowerShell architectures.
         $NssmArchSubDir = Join-Path "nssm-$NssmVersion" "win32"
