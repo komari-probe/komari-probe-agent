@@ -43,14 +43,19 @@ func NewDialContextWithPreference(timeout time.Duration, preferIPVersion string)
 		}
 		sortIPsByPreference(ips, preferIPVersion)
 
+		var lastErr error
 		for _, ip := range ips {
 			dialer := &net.Dialer{Timeout: timeout, KeepAlive: 30 * time.Second, DualStack: true}
 			conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(ip, port))
 			if err == nil {
 				return conn, nil
 			}
+			lastErr = err
 		}
-		return nil, fmt.Errorf("failed to dial to any of the resolved IPs")
+		if lastErr != nil {
+			return nil, fmt.Errorf("dial resolved address for %s: %w", address, lastErr)
+		}
+		return nil, fmt.Errorf("no IP addresses resolved for %s", host)
 	}
 }
 
@@ -87,12 +92,18 @@ func sortIPsByPreference(ips []string, preferIPVersion string) {
 
 func preferIPv4First() bool {
 	preferV4Once.Do(func() {
-		interfaces, _ := net.Interfaces()
+		interfaces, err := net.Interfaces()
+		if err != nil {
+			return
+		}
 		for _, iface := range interfaces {
 			if (iface.Flags&net.FlagUp) == 0 || (iface.Flags&net.FlagLoopback) != 0 {
 				continue
 			}
-			addresses, _ := iface.Addrs()
+			addresses, err := iface.Addrs()
+			if err != nil {
+				continue
+			}
 			for _, address := range addresses {
 				var ip net.IP
 				switch value := address.(type) {

@@ -12,7 +12,7 @@ import (
 	"github.com/shirou/gopsutil/v4/mem"
 )
 
-type RamInfo struct {
+type RAMInfo struct {
 	Total uint64 `json:"total"`
 	Used  uint64 `json:"used"`
 	Mode  string
@@ -88,53 +88,46 @@ func ReadProcMeminfo() (*ProcMemInfo, error) {
 	return info, scanner.Err()
 }
 
-func GetMemHtopLike() RamInfo {
-	raminfo := RamInfo{Mode: "htoplike"}
+func MemoryHtopLike() RAMInfo {
+	ramInfo := RAMInfo{Mode: "htoplike"}
 	if runtime.GOOS == "linux" {
 		info, err := ReadProcMeminfo()
 		if err == nil && info.MemTotal > 0 {
-			raminfo.Total = info.MemTotal
+			ramInfo.Total = info.MemTotal
 			// htop logic:
 			// usedDiff = free + cached + sreclaimable + buffers
 			usedDiff := info.MemFree + info.Cached + info.SReclaimable + info.Buffers
 
 			if info.MemTotal >= usedDiff {
-				raminfo.Used = info.MemTotal - usedDiff
+				ramInfo.Used = info.MemTotal - usedDiff
 			} else {
-				raminfo.Used = info.MemTotal - info.MemFree
+				ramInfo.Used = info.MemTotal - info.MemFree
 			}
-			raminfo.Used += info.Shmem
-
-			//if info.Zswap > 0 || info.Zswapped > 0 {
-			//	if raminfo.Used > info.Zswap {
-			//		raminfo.Used -= info.Zswap
-			//	} else {
-			//		raminfo.Used = 0
-			//	}
-			//}
-			return raminfo
+			ramInfo.Used += info.Shmem
+			return ramInfo
 		}
 	}
-	return raminfo
+	return ramInfo
 }
 
-func GetMemGopsutil() RamInfo {
-	raminfo := RamInfo{Mode: "gopsutil"}
+func MemoryGopsutil() RAMInfo {
+	ramInfo := RAMInfo{Mode: "gopsutil"}
 	v, err := mem.VirtualMemory()
 	if err == nil {
-		raminfo.Total = v.Total
-		raminfo.Used = v.Total - v.Available
+		ramInfo.Total = v.Total
+		ramInfo.Used = v.Total - v.Available
 	}
-	return raminfo
+	return ramInfo
 }
 
-// 这我还能干嘛，大伙天天说和free显示不一样，我也没办法
-func CallFree() RamInfo {
-	raminfo := RamInfo{Mode: "callFree"}
+// MemoryFromFree returns the values reported by the free command when it is
+// available on Linux or FreeBSD.
+func MemoryFromFree() RAMInfo {
+	ramInfo := RAMInfo{Mode: "free"}
 
 	// Only works on Linux/Unix systems
 	if runtime.GOOS != "linux" && runtime.GOOS != "freebsd" {
-		return raminfo
+		return ramInfo
 	}
 
 	// Execute 'free -b' command to get memory in bytes
@@ -143,7 +136,7 @@ func CallFree() RamInfo {
 	cmd.Stdout = &out
 	err := cmd.Run()
 	if err != nil {
-		return raminfo
+		return ramInfo
 	}
 
 	// Parse the output
@@ -165,28 +158,28 @@ func CallFree() RamInfo {
 			if len(fields) >= 3 {
 				total, err := strconv.ParseUint(fields[1], 10, 64)
 				if err == nil {
-					raminfo.Total = total
+					ramInfo.Total = total
 				}
 
 				used, err := strconv.ParseUint(fields[2], 10, 64)
 				if err == nil {
-					raminfo.Used = used
+					ramInfo.Used = used
 				}
 			}
 			break
 		}
 	}
 
-	return raminfo
+	return ramInfo
 }
 
-func (c *Collector) Ram() RamInfo {
+func (c *Collector) RAM() RAMInfo {
 	if c.options.MemoryIncludeCache {
 		v, err := mem.VirtualMemory()
 		if err != nil {
-			return RamInfo{}
+			return RAMInfo{}
 		}
-		return RamInfo{
+		return RAMInfo{
 			Total: v.Total,
 			Used:  v.Total - v.Free,
 			Mode:  "includeCache",
@@ -194,44 +187,44 @@ func (c *Collector) Ram() RamInfo {
 	}
 
 	if c.options.MemoryReportRawUsed {
-		return GetMemHtopLike()
+		return MemoryHtopLike()
 	}
 
 	if runtime.GOOS == "linux" {
-		h := GetMemHtopLike()
+		h := MemoryHtopLike()
 		if h.Total > 0 {
 			return h
 		}
 	}
 
 	// Default fallback
-	return GetMemGopsutil()
+	return MemoryGopsutil()
 }
 
-func Swap() RamInfo {
-	swapinfo := RamInfo{}
+func Swap() RAMInfo {
+	swapInfo := RAMInfo{}
 
 	if runtime.GOOS == "linux" {
 		info, err := ReadProcMeminfo()
 		if err == nil {
-			swapinfo.Total = info.SwapTotal
+			swapInfo.Total = info.SwapTotal
 			// used = total - free - cached
 			// Check for underflow
 			usedDeductions := info.SwapFree + info.SwapCached
 			if info.SwapTotal >= usedDeductions {
-				swapinfo.Used = info.SwapTotal - usedDeductions
+				swapInfo.Used = info.SwapTotal - usedDeductions
 			} else {
-				swapinfo.Used = info.SwapTotal - info.SwapFree
+				swapInfo.Used = info.SwapTotal - info.SwapFree
 			}
-			return swapinfo
+			return swapInfo
 		}
 	}
 
 	s, err := mem.SwapMemory()
 	if err != nil {
-		return swapinfo
+		return swapInfo
 	}
-	swapinfo.Total = s.Total
-	swapinfo.Used = s.Used
-	return swapinfo
+	swapInfo.Total = s.Total
+	swapInfo.Used = s.Used
+	return swapInfo
 }

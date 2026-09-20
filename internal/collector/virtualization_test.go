@@ -4,8 +4,8 @@ import (
 	"testing"
 )
 
-func TestVirtualized(t *testing.T) {
-	virt := Virtualized()
+func TestVirtualization(t *testing.T) {
+	virt := Virtualization()
 	cpuid_result := detectByCPUID()
 	container_result := detectContainer()
 	t.Logf("Virtualization type: %s", virt)

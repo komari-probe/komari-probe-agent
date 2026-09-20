@@ -2,6 +2,7 @@ package reporter
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -27,11 +28,11 @@ func (r *Reporter) UpdateBasicInfo() {
 	}
 }
 func (r *Reporter) uploadBasicInfo() error {
-	cpu := collector.CpuStaticInfo()
+	cpu := collector.CPUStaticInfo()
 
 	osname := collector.OSName()
 	kernelVersion := collector.KernelVersion()
-	ipv4, ipv6, _ := r.collector.IPAddresses()
+	ipv4, ipv6 := r.collector.IPAddresses()
 
 	data := map[string]any{
 		"cpu_name":           cpu.CPUName,
@@ -42,13 +43,17 @@ func (r *Reporter) uploadBasicInfo() error {
 		"kernel_version":     kernelVersion,
 		"ipv4":               ipv4,
 		"ipv6":               ipv6,
-		"mem_total":          r.collector.Ram().Total,
+		"mem_total":          r.collector.RAM().Total,
 		"swap_total":         collector.Swap().Total,
 		"disk_total":         r.collector.Disk().Total,
 		"gpu_name":           r.collector.GPUName(),
-		"virtualization":     collector.Virtualized(),
+		"virtualization":     collector.Virtualization(),
 		"version":            version.CurrentVersion,
 	}
 
-	return r.postAndValidateRPC(context.Background(), buildBasicInfoPayload(data), 30*time.Second)
+	payload, err := buildBasicInfoPayload(data)
+	if err != nil {
+		return fmt.Errorf("build basic-info payload: %w", err)
+	}
+	return r.postAndValidateRPC(context.Background(), payload, 30*time.Second)
 }

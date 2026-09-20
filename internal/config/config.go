@@ -1,5 +1,7 @@
 package config
 
+import "fmt"
+
 type Config struct {
 	AutoDiscoveryKey    string  `json:"auto_discovery_key" env:"AGENT_AUTO_DISCOVERY_KEY"`         // 自动发现密钥
 	Token               string  `json:"token" env:"AGENT_TOKEN"`                                   // Token
@@ -36,4 +38,28 @@ func Default() Config {
 		ReconnectInterval:  5,
 		InfoReportInterval: 5,
 	}
+}
+
+// Validate verifies runtime values that would otherwise cause invalid timers
+// or connections when configuration is loaded from a file or environment.
+func (c Config) Validate() error {
+	if c.Interval <= 0 {
+		return fmt.Errorf("interval must be greater than zero")
+	}
+	if c.MaxRetries < 0 {
+		return fmt.Errorf("max retries cannot be negative")
+	}
+	if c.ReconnectInterval <= 0 {
+		return fmt.Errorf("reconnect interval must be greater than zero")
+	}
+	if c.InfoReportInterval <= 0 {
+		return fmt.Errorf("basic-info report interval must be greater than zero")
+	}
+	if c.MonthRotate < 0 || c.MonthRotate > 31 {
+		return fmt.Errorf("month rotate must be between 0 and 31")
+	}
+	if c.PreferIPVersion != "" && c.PreferIPVersion != "4" && c.PreferIPVersion != "6" {
+		return fmt.Errorf("preferred IP version must be 4 or 6")
+	}
+	return nil
 }

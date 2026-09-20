@@ -24,6 +24,27 @@ func TestApplyEnvironmentOverlaysValues(t *testing.T) {
 	}
 }
 
+func TestConfigValidate(t *testing.T) {
+	tests := []struct {
+		name string
+		cfg  Config
+		want bool
+	}{
+		{name: "defaults", cfg: Default()},
+		{name: "zero interval", cfg: Config{Interval: 0, MaxRetries: 0, ReconnectInterval: 1, InfoReportInterval: 1}, want: true},
+		{name: "negative retries", cfg: Config{Interval: 1, MaxRetries: -1, ReconnectInterval: 1, InfoReportInterval: 1}, want: true},
+		{name: "invalid IP preference", cfg: Config{Interval: 1, MaxRetries: 0, ReconnectInterval: 1, InfoReportInterval: 1, PreferIPVersion: "5"}, want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.cfg.Validate(); (got != nil) != tt.want {
+				t.Fatalf("Validate() error = %v, want error = %t", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestApplyEnvironmentRejectsInvalidValues(t *testing.T) {
 	cfg := Default()
 	err := ApplyEnvironment(&cfg, func(name string) (string, bool) {

@@ -12,15 +12,15 @@ type reportParams struct {
 	AckEventIDs []string        `json:"ack_event_ids,omitempty"`
 }
 
-func buildReportPayload(report []byte) []byte {
+func buildReportPayload(report []byte) ([]byte, error) {
 	return v2.NewNotification(v2.MethodAgentReport, reportParams{Report: json.RawMessage(report)})
 }
 
-func buildReportRequest(id any, report []byte, ackEventIDs []string) []byte {
+func buildReportRequest(id any, report []byte, ackEventIDs []string) ([]byte, error) {
 	return v2.NewRequest(id, v2.MethodAgentReport, reportParams{Report: json.RawMessage(report), AckEventIDs: ackEventIDs})
 }
 
-func buildBasicInfoPayload(info map[string]any) []byte {
+func buildBasicInfoPayload(info map[string]any) ([]byte, error) {
 	return v2.NewNotification(v2.MethodAgentBasicInfo, map[string]any{"info": info})
 }
 

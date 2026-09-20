@@ -85,7 +85,16 @@ func (r *Reporter) EstablishWebSocketConnection() {
 			}
 			nextReportAt = time.Now().Add(reportInterval)
 
-			data := buildReportPayload(r.GenerateReport())
+			report, err := r.GenerateReport()
+			if err != nil {
+				log.Println("Failed to build performance report:", err)
+				continue
+			}
+			data, err := buildReportPayload(report)
+			if err != nil {
+				log.Println("Failed to build WebSocket report payload:", err)
+				continue
+			}
 			err = r.sendRPCPayload(conn, data)
 			if err != nil {
 				log.Println("Failed to send WebSocket message:", err)
@@ -142,7 +151,17 @@ func (r *Reporter) runPostFallback(websocketEndpoint string, interval float64) (
 		case <-reportTicker.C:
 			reportID := fmt.Sprintf("report-%d", time.Now().UnixNano())
 			ackIDs := r.snapshotV2AckEventIDs()
-			resp, err := r.postV2Request(buildReportRequest(reportID, r.GenerateReport(), ackIDs))
+			report, err := r.GenerateReport()
+			if err != nil {
+				log.Println("Failed to build performance report:", err)
+				continue
+			}
+			payload, err := buildReportRequest(reportID, report, ackIDs)
+			if err != nil {
+				log.Println("Failed to build POST report payload:", err)
+				continue
+			}
+			resp, err := r.postV2Request(payload)
 			if err != nil {
 				log.Println("Failed to POST v2 report:", err)
 				continue
@@ -168,10 +187,14 @@ func (r *Reporter) runV2PullLoop(ctx context.Context) {
 		}
 		pullID := fmt.Sprintf("pull-%d", time.Now().UnixNano())
 		ackIDs := r.snapshotV2AckEventIDs()
-		payload := v2.NewRequest(pullID, v2.MethodAgentPull, map[string]any{
+		payload, err := v2.NewRequest(pullID, v2.MethodAgentPull, map[string]any{
 			"capabilities":  []string{"ping", "message", "event"},
 			"ack_event_ids": ackIDs,
 		})
+		if err != nil {
+			log.Println("Failed to build v2 pull payload:", err)
+			return
+		}
 		resp, err := r.postV2RequestContext(ctx, payload)
 		if err != nil {
 			if ctx.Err() != nil {

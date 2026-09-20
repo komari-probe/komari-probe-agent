@@ -3,10 +3,8 @@ package app
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -23,8 +21,8 @@ import (
 // Run starts the Agent runtime after command-line configuration has been
 // resolved. It owns the application's lifecycle and service orchestration.
 func Run(cfg config.Config) error {
-	if cfg.PreferIPVersion != "" && cfg.PreferIPVersion != "4" && cfg.PreferIPVersion != "6" {
-		return fmt.Errorf("invalid --prefer-ip-version value %q: expected 4 or 6", cfg.PreferIPVersion)
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("invalid configuration: %w", err)
 	}
 
 	stopCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -32,7 +30,9 @@ func Run(cfg config.Config) error {
 	go func() {
 		<-stopCtx.Done()
 		log.Printf("shutting down gracefully...")
-		netstatic.Stop()
+		if err := netstatic.Stop(); err != nil {
+			log.Printf("save network traffic statistics during shutdown: %v", err)
+		}
 		os.Exit(0)
 	}()
 
@@ -69,7 +69,7 @@ func Run(cfg config.Config) error {
 		EnableGPU:          cfg.EnableGPU,
 	}, hostCollector)
 
-	hostCollector.InitNetstatic()
+	hostCollector.InitNetStatic()
 	log.Println("Komari Agent", version.CurrentVersion)
 
 	if cfg.CustomDNS != "" {
@@ -90,9 +90,6 @@ func Run(cfg config.Config) error {
 	}
 	log.Println("Monitoring Interfaces:", interfaceList)
 
-	if cfg.IgnoreUnsafeCert {
-		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	}
 	go agentReporter.RunStaticInfoReporter()
 	for {
 		agentReporter.UpdateBasicInfo()

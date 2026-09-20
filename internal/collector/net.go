@@ -128,100 +128,19 @@ var (
 	}
 )
 
-// VnstatInterface represents a network interface in vnstat output
-type VnstatInterface struct {
-	Name    string        `json:"name"`
-	Alias   string        `json:"alias"`
-	Created VnstatDate    `json:"created"`
-	Updated VnstatUpdated `json:"updated"`
-	Traffic VnstatTraffic `json:"traffic"`
-}
-
-// VnstatDate represents date information
-type VnstatDate struct {
-	Date      VnstatDateInfo `json:"date"`
-	Timestamp int64          `json:"timestamp"`
-}
-
-// VnstatUpdated represents updated information
-type VnstatUpdated struct {
-	Date      VnstatDateInfo `json:"date"`
-	Time      VnstatTimeInfo `json:"time"`
-	Timestamp int64          `json:"timestamp"`
-}
-
-// VnstatDateInfo represents date components
-type VnstatDateInfo struct {
-	Year  int `json:"year"`
-	Month int `json:"month"`
-	Day   int `json:"day"`
-}
-
-// VnstatTimeInfo represents time components
-type VnstatTimeInfo struct {
-	Hour   int `json:"hour"`
-	Minute int `json:"minute"`
-}
-
-// VnstatTraffic represents traffic data from vnstat
-type VnstatTraffic struct {
-	Total      VnstatTotal        `json:"total"`
-	FiveMinute []VnstatTimeEntry  `json:"fiveminute"`
-	Hour       []VnstatTimeEntry  `json:"hour"`
-	Day        []VnstatTimeEntry  `json:"day"`
-	Month      []VnstatMonthEntry `json:"month"`
-	Year       []VnstatYearEntry  `json:"year"`
-	Top        []VnstatTimeEntry  `json:"top"`
-}
-
-// VnstatTotal represents total traffic data
-type VnstatTotal struct {
-	Rx uint64 `json:"rx"`
-	Tx uint64 `json:"tx"`
-}
-
-// VnstatTimeEntry represents a time-based traffic entry
-type VnstatTimeEntry struct {
-	ID        int            `json:"id"`
-	Date      VnstatDateInfo `json:"date"`
-	Time      VnstatTimeInfo `json:"time,omitempty"`
-	Timestamp int64          `json:"timestamp"`
-	Rx        uint64         `json:"rx"`
-	Tx        uint64         `json:"tx"`
-}
-
-// VnstatMonthEntry represents a monthly traffic entry
-type VnstatMonthEntry struct {
-	ID        int            `json:"id"`
-	Date      VnstatDateInfo `json:"date"`
-	Timestamp int64          `json:"timestamp"`
-	Rx        uint64         `json:"rx"`
-	Tx        uint64         `json:"tx"`
-}
-
-// VnstatYearEntry represents a yearly traffic entry
-type VnstatYearEntry struct {
-	ID        int            `json:"id"`
-	Date      VnstatDateInfo `json:"date"`
-	Timestamp int64          `json:"timestamp"`
-	Rx        uint64         `json:"rx"`
-	Tx        uint64         `json:"tx"`
-}
-
-// VnstatOutput represents the complete vnstat JSON output
-type VnstatOutput struct {
-	VnstatVersion string            `json:"vnstatversion"`
-	JsonVersion   string            `json:"jsonversion"`
-	Interfaces    []VnstatInterface `json:"interfaces"`
-}
-
 func (c *Collector) NetworkSpeed() (totalUp, totalDown, upSpeed, downSpeed uint64, err error) {
 	includeNICs := parseNICs(c.options.IncludeNICs)
 	excludeNICs := parseNICs(c.options.ExcludeNICs)
 
 	// 如果设置了月重置（非0），统计totalUp、totalDown
 	if c.options.MonthRotate != 0 {
-		netstatic.StartOrContinue() // 确保netstatic在运行
+		if err := netstatic.StartOrContinue(); err != nil {
+			fallbackUp, fallbackDown, fallbackUpSpeed, fallbackDownSpeed, fallbackErr := getNetworkSpeedFallback(includeNICs, excludeNICs)
+			if fallbackErr != nil {
+				return fallbackUp, fallbackDown, fallbackUpSpeed, fallbackDownSpeed, fmt.Errorf("start network traffic history: %w; fallback error: %w", err, fallbackErr)
+			}
+			return fallbackUp, fallbackDown, fallbackUpSpeed, fallbackDownSpeed, fmt.Errorf("start network traffic history: %w", err)
+		}
 		now := uint64(time.Now().Unix())
 		resetDay := uint64(netstatic.GetLastResetDate(c.options.MonthRotate, time.Now()).Unix())
 		nicStatics, err := netstatic.GetTotalTrafficBetween(resetDay, now)
@@ -229,9 +148,9 @@ func (c *Collector) NetworkSpeed() (totalUp, totalDown, upSpeed, downSpeed uint6
 			// 如果netstatic失败，回退到原来的方法，并返回额外的错误信息
 			fallbackUp, fallbackDown, fallbackUpSpeed, fallbackDownSpeed, fallbackErr := getNetworkSpeedFallback(includeNICs, excludeNICs)
 			if fallbackErr != nil {
-				return fallbackUp, fallbackDown, fallbackUpSpeed, fallbackDownSpeed, fmt.Errorf("failed to call GetTotalTrafficBetween: %v; fallback error: %w", err, fallbackErr)
+				return fallbackUp, fallbackDown, fallbackUpSpeed, fallbackDownSpeed, fmt.Errorf("get historical network traffic: %w; fallback error: %w", err, fallbackErr)
 			}
-			return fallbackUp, fallbackDown, fallbackUpSpeed, fallbackDownSpeed, fmt.Errorf("failed to call GetTotalTrafficBetween: %w", err)
+			return fallbackUp, fallbackDown, fallbackUpSpeed, fallbackDownSpeed, fmt.Errorf("get historical network traffic: %w", err)
 		}
 
 		for interfaceName, stats := range nicStatics {

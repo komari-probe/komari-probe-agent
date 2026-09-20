@@ -6,6 +6,7 @@ package gpu
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"strconv"
@@ -36,25 +37,31 @@ func (rsmi *rocmSMI) devices() ([]amdDevice, error) {
 }
 
 func (rsmi *rocmSMI) start() error {
-	if _, err := os.Stat(rsmi.BinPath); os.IsNotExist(err) {
+	if _, err := os.Stat(rsmi.BinPath); err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("stat rocm-smi: %w", err)
+		}
 		binPath, err := exec.LookPath("rocm-smi")
 		if err != nil {
-			return errors.New("rocm-smi tool not found")
+			return fmt.Errorf("find rocm-smi: %w", err)
 		}
 		rsmi.BinPath = binPath
 	}
 
-	rsmi.data = rsmi.pollrocmSMI()
+	data, err := rsmi.pollrocmSMI()
+	if err != nil {
+		return err
+	}
+	rsmi.data = data
 	return nil
 }
 
-func (rsmi *rocmSMI) pollrocmSMI() []byte {
-	cmd := exec.Command(rsmi.BinPath, "--showallinfo", "--json")
-	output, err := cmd.CombinedOutput()
+func (rsmi *rocmSMI) pollrocmSMI() ([]byte, error) {
+	output, err := exec.Command(rsmi.BinPath, "--showallinfo", "--json").CombinedOutput()
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("run rocm-smi: %w", err)
 	}
-	return output
+	return output, nil
 }
 
 func (rsmi *rocmSMI) gatherModel() ([]string, error) {

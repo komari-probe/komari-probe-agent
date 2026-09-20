@@ -12,6 +12,12 @@ import (
 	"strings"
 )
 
+var (
+	adrenoModelPattern    = regexp.MustCompile(`adreno[-_](\d+)`)
+	maliModelPattern      = regexp.MustCompile(`mali[-_]([a-z]\d+)`)
+	allwinnerModelPattern = regexp.MustCompile(`sun\d+i-([a-z0-9]+)`)
+)
+
 func Name() string {
 	if name := getFromLspci(); name != "None" {
 		return name
@@ -246,8 +252,7 @@ func parseSocModel(driver string, rawBytes []byte) string {
 	// 高通 Adreno (Qualcomm)
 	if driver == "msm" || strings.Contains(lower, "adreno") {
 		// "adreno-750", "adreno-660"
-		re := regexp.MustCompile(`adreno[-_](\d+)`)
-		matches := re.FindStringSubmatch(lower)
+		matches := adrenoModelPattern.FindStringSubmatch(lower)
 		if len(matches) > 1 {
 			return "Qualcomm Adreno " + matches[1]
 		}
@@ -257,8 +262,7 @@ func parseSocModel(driver string, rawBytes []byte) string {
 	// ARM Mali (Rockchip/MediaTek/AmLogic)
 	if driver == "panfrost" || driver == "lima" || strings.Contains(lower, "mali") {
 		// "mali-g610", "mali-t860"
-		re := regexp.MustCompile(`mali[-_]([a-z]\d+)`)
-		matches := re.FindStringSubmatch(lower)
+		matches := maliModelPattern.FindStringSubmatch(lower)
 		if len(matches) > 1 {
 			return "ARM Mali " + strings.ToUpper(matches[1]) // Mali G610
 		}
@@ -281,8 +285,7 @@ func parseSocModel(driver string, rawBytes []byte) string {
 	// Allwinner (全志)
 	// "allwinner,sun50i-h6-display-engine"
 	if strings.Contains(lower, "allwinner") || strings.Contains(lower, "sun50i") || strings.Contains(lower, "sun8i") {
-		re := regexp.MustCompile(`sun\d+i-([a-z0-9]+)`)
-		matches := re.FindStringSubmatch(lower)
+		matches := allwinnerModelPattern.FindStringSubmatch(lower)
 		if len(matches) > 1 {
 			model := strings.ToUpper(matches[1])
 			return "Allwinner " + model
