@@ -2,9 +2,11 @@
 
 Komari Probe Agent 是部署在被监控主机上的轻量级监控组件，负责采集指标、执行探测并向 Komari Probe 中心端上报数据。
 
+[English](README.en.md) | 中文
+
 ## 配置方式
 
-agent 参数可以通过命令行参数、环境变量或 JSON 配置文件传入。
+Komari Probe Agent 参数可以通过命令行参数、环境变量或 JSON 配置文件传入。正式命令为 `komari-agent`。
 
 最小启动示例：
 
