@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestConnectionsCount(t *testing.T) {
@@ -219,13 +220,29 @@ func TestNetworkSpeedFallback(t *testing.T) {
 	includeNICs := map[string]struct{}{}
 	excludeNICs := map[string]struct{}{}
 
-	totalUp, totalDown, upSpeed, downSpeed, err := getNetworkSpeedFallback(includeNICs, excludeNICs)
+	totalUp, totalDown, upSpeed, downSpeed, err := New(Options{}).getNetworkSpeedFallback(includeNICs, excludeNICs)
 	if err != nil {
 		t.Fatalf("getNetworkSpeedFallback failed: %v", err)
 	}
 
 	t.Logf("TotalUp: %d, TotalDown: %d, UpSpeed: %d/s, DownSpeed: %d/s",
 		totalUp, totalDown, upSpeed, downSpeed)
+}
+
+func TestNetworkSpeedSamplesAreCollectorScoped(t *testing.T) {
+	firstCollector := New(Options{})
+	secondCollector := New(Options{})
+	start := time.Unix(1_000, 0)
+
+	if up, down := firstCollector.updateNetworkSpeedSample(100, 200, start); up != 0 || down != 0 {
+		t.Fatalf("first collector initial speed = %d/%d, want 0/0", up, down)
+	}
+	if up, down := secondCollector.updateNetworkSpeedSample(100, 200, start); up != 0 || down != 0 {
+		t.Fatalf("second collector inherited first collector state: %d/%d", up, down)
+	}
+	if up, down := firstCollector.updateNetworkSpeedSample(110, 220, start.Add(time.Second)); up != 10 || down != 20 {
+		t.Fatalf("first collector speed = %d/%d, want 10/20", up, down)
+	}
 }
 
 func TestNetworkSpeedWithoutMonthRotate(t *testing.T) {

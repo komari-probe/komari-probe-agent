@@ -2,8 +2,6 @@ package collector
 
 import (
 	"log"
-
-	"github.com/komari-probe/komari-probe-agent/internal/collector/netstatic"
 )
 
 // InitNetStatic starts netstatic when monthly traffic resets are enabled and
@@ -12,7 +10,7 @@ func (c *Collector) InitNetStatic() {
 	if c.options.MonthRotate == 0 {
 		return
 	}
-	err := netstatic.StartOrContinue()
+	err := c.trafficTracker.Start()
 	if err != nil {
 		log.Println("Failed to start netstatic monitoring:", err)
 	}
@@ -20,9 +18,7 @@ func (c *Collector) InitNetStatic() {
 	if err != nil {
 		log.Println("Failed to get interface list for netstatic:", err)
 	}
-	err = netstatic.SetNewConfig(netstatic.NetStaticConfig{
-		NICs: nicNames,
-	})
+	err = c.trafficTracker.ConfigureNICs(nicNames)
 	if err != nil {
 		log.Println("Failed to set netstatic config:", err)
 	}
@@ -33,5 +29,5 @@ func (c *Collector) Close() error {
 	if c.options.MonthRotate == 0 {
 		return nil
 	}
-	return netstatic.Stop()
+	return c.trafficTracker.Close()
 }
