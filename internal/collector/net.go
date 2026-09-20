@@ -134,8 +134,8 @@ func (c *Collector) NetworkSpeed() (totalUp, totalDown, upSpeed, downSpeed uint6
 
 	// 如果设置了月重置（非0），统计totalUp、totalDown
 	if c.options.MonthRotate != 0 {
-		if err := netstatic.StartOrContinue(); err != nil {
-			fallbackUp, fallbackDown, fallbackUpSpeed, fallbackDownSpeed, fallbackErr := getNetworkSpeedFallback(includeNICs, excludeNICs)
+		if err := c.trafficTracker.Start(); err != nil {
+			fallbackUp, fallbackDown, fallbackUpSpeed, fallbackDownSpeed, fallbackErr := c.getNetworkSpeedFallback(includeNICs, excludeNICs)
 			if fallbackErr != nil {
 				return fallbackUp, fallbackDown, fallbackUpSpeed, fallbackDownSpeed, fmt.Errorf("start network traffic history: %w; fallback error: %w", err, fallbackErr)
 			}
@@ -143,10 +143,10 @@ func (c *Collector) NetworkSpeed() (totalUp, totalDown, upSpeed, downSpeed uint6
 		}
 		now := uint64(time.Now().Unix())
 		resetDay := uint64(netstatic.GetLastResetDate(c.options.MonthRotate, time.Now()).Unix())
-		nicStatics, err := netstatic.GetTotalTrafficBetween(resetDay, now)
+		nicStatics, err := c.trafficTracker.TotalTrafficBetween(resetDay, now)
 		if err != nil {
 			// 如果netstatic失败，回退到原来的方法，并返回额外的错误信息
-			fallbackUp, fallbackDown, fallbackUpSpeed, fallbackDownSpeed, fallbackErr := getNetworkSpeedFallback(includeNICs, excludeNICs)
+			fallbackUp, fallbackDown, fallbackUpSpeed, fallbackDownSpeed, fallbackErr := c.getNetworkSpeedFallback(includeNICs, excludeNICs)
 			if fallbackErr != nil {
 				return fallbackUp, fallbackDown, fallbackUpSpeed, fallbackDownSpeed, fmt.Errorf("get historical network traffic: %w; fallback error: %w", err, fallbackErr)
 			}
@@ -161,7 +161,7 @@ func (c *Collector) NetworkSpeed() (totalUp, totalDown, upSpeed, downSpeed uint6
 		}
 
 		// 对于实时速度，仍然使用网卡累计计数器差值
-		_, _, upSpeed, downSpeed, err = getNetworkSpeedFallback(includeNICs, excludeNICs)
+		_, _, upSpeed, downSpeed, err = c.getNetworkSpeedFallback(includeNICs, excludeNICs)
 		if err != nil {
 			return totalUp, totalDown, 0, 0, err
 		}
@@ -170,16 +170,16 @@ func (c *Collector) NetworkSpeed() (totalUp, totalDown, upSpeed, downSpeed uint6
 	}
 
 	// 如果没有设置月重置，使用原来的方法
-	return getNetworkSpeedFallback(includeNICs, excludeNICs)
+	return c.getNetworkSpeedFallback(includeNICs, excludeNICs)
 }
 
-func getNetworkSpeedFallback(includeNICs, excludeNICs map[string]struct{}) (totalUp, totalDown, upSpeed, downSpeed uint64, err error) {
+func (c *Collector) getNetworkSpeedFallback(includeNICs, excludeNICs map[string]struct{}) (totalUp, totalDown, upSpeed, downSpeed uint64, err error) {
 	totalUp, totalDown, err = collectNetworkTotals(includeNICs, excludeNICs)
 	if err != nil {
 		return 0, 0, 0, 0, err
 	}
 
-	upSpeed, downSpeed = updateNetworkSpeedSample(totalUp, totalDown, time.Now())
+	upSpeed, downSpeed = c.updateNetworkSpeedSample(totalUp, totalDown, time.Now())
 	return totalUp, totalDown, upSpeed, downSpeed, nil
 }
 
@@ -210,30 +210,28 @@ type networkSpeedState struct {
 	sampledAt time.Time
 }
 
-var networkSpeedSample networkSpeedState
+func (c *Collector) updateNetworkSpeedSample(totalUp, totalDown uint64, now time.Time) (upSpeed, downSpeed uint64) {
+	c.networkSpeed.Lock()
+	defer c.networkSpeed.Unlock()
 
-func updateNetworkSpeedSample(totalUp, totalDown uint64, now time.Time) (upSpeed, downSpeed uint64) {
-	networkSpeedSample.Lock()
-	defer networkSpeedSample.Unlock()
-
-	if networkSpeedSample.sampledAt.IsZero() {
-		networkSpeedSample.totalUp = totalUp
-		networkSpeedSample.totalDown = totalDown
-		networkSpeedSample.sampledAt = now
+	if c.networkSpeed.sampledAt.IsZero() {
+		c.networkSpeed.totalUp = totalUp
+		c.networkSpeed.totalDown = totalDown
+		c.networkSpeed.sampledAt = now
 		return 0, 0
 	}
 
-	elapsed := now.Sub(networkSpeedSample.sampledAt).Seconds()
+	elapsed := now.Sub(c.networkSpeed.sampledAt).Seconds()
 	if elapsed <= 0 {
 		return 0, 0
 	}
 
-	upDelta := safeCounterDelta(totalUp, networkSpeedSample.totalUp)
-	downDelta := safeCounterDelta(totalDown, networkSpeedSample.totalDown)
+	upDelta := safeCounterDelta(totalUp, c.networkSpeed.totalUp)
+	downDelta := safeCounterDelta(totalDown, c.networkSpeed.totalDown)
 
-	networkSpeedSample.totalUp = totalUp
-	networkSpeedSample.totalDown = totalDown
-	networkSpeedSample.sampledAt = now
+	c.networkSpeed.totalUp = totalUp
+	c.networkSpeed.totalDown = totalDown
+	c.networkSpeed.sampledAt = now
 
 	return uint64(float64(upDelta) / elapsed), uint64(float64(downDelta) / elapsed)
 }
