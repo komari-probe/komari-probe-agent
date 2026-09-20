@@ -8,7 +8,7 @@ fi
 
 goreleaser release --snapshot --clean
 
-bash "$(dirname "$0")/scripts/flatten-goreleaser-output.sh" build
+bash "$(dirname "$0")/flatten-goreleaser-output.sh" build
 
 echo
 echo "Binaries are in the ./build directory."
