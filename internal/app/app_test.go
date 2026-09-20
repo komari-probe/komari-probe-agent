@@ -13,3 +13,9 @@ func TestRunRejectsInvalidConfigurationBeforeStartingServices(t *testing.T) {
 		t.Fatal("run() accepted an invalid configuration")
 	}
 }
+
+func TestRunRejectsInvalidConfigurationThroughPublicEntryPoint(t *testing.T) {
+	if err := Run(config.Config{}); err == nil {
+		t.Fatal("Run() accepted an invalid configuration")
+	}
+}
