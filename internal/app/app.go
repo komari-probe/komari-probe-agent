@@ -39,7 +39,7 @@ func run(ctx context.Context, cfg config.Config) error {
 
 	if cfg.AutoDiscoveryKey != "" {
 		var err error
-		cfg, err = discovery.ResolveAutoDiscovery(cfg, connections)
+		cfg, err = discovery.ResolveAutoDiscovery(ctx, cfg, connections)
 		if err != nil {
 			return fmt.Errorf("auto-discovery failed: %w", err)
 		}
