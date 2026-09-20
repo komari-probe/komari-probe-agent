@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/komari-probe/komari-probe-agent/internal/collector"
 	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
+	v2 "github.com/komari-probe/komari-probe-agent/internal/rpc/v2"
 )
 
 func newConnectionTestReporter(endpoint string) *Reporter {
@@ -139,6 +140,61 @@ func TestConnectWithFallbackRecoversFromPostFallback(t *testing.T) {
 	defer connection.Close()
 	if websocketAttempts.Load() != 3 {
 		t.Fatalf("WebSocket attempts = %d, want 3", websocketAttempts.Load())
+	}
+}
+
+func TestWebSocketDisconnectCancelsPingTask(t *testing.T) {
+	requestStarted := make(chan struct{})
+	requestCanceled := make(chan struct{})
+	probeServer := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, request *http.Request) {
+		close(requestStarted)
+		<-request.Context().Done()
+		close(requestCanceled)
+	}))
+	defer probeServer.Close()
+
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	wsServer := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		connection, err := upgrader.Upgrade(writer, request, nil)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer connection.Close()
+		if err := connection.WriteJSON(v2.Request{
+			JSONRPC: v2.Version,
+			Method:  v2.MethodAgentPing,
+			Params:  map[string]any{"ping_task_id": 1, "ping_type": "http", "ping_target": probeServer.URL},
+		}); err != nil {
+			t.Error(err)
+			return
+		}
+		select {
+		case <-requestStarted:
+		case <-time.After(2 * time.Second):
+			t.Error("ping task did not start")
+		}
+	}))
+	defer wsServer.Close()
+
+	reporter := newConnectionTestReporter(wsServer.URL)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- reporter.runWebSocketConnection(ctx) }()
+	select {
+	case <-requestCanceled:
+		cancel()
+	case <-time.After(3 * time.Second):
+		cancel()
+		t.Fatal("WebSocket disconnect did not cancel the Ping task")
+	}
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("runWebSocketConnection() error = %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("runWebSocketConnection() did not stop after cancellation")
 	}
 }
 

@@ -74,7 +74,7 @@ func (r *Reporter) processV2Event(ctx context.Context, conn *connectivity.SafeCo
 		if !r.markV2EventSeen(eventID) {
 			return true
 		}
-		go r.reportPingTask(ctx, conn, ping.TaskID, ping.Type, ping.Target)
+		r.startPingTask(ctx, conn, ping.TaskID, ping.Type, ping.Target)
 		return true
 	case v2.MethodAgentMessage, v2.MethodAgentEvent:
 		if !r.markV2EventSeen(eventID) {
