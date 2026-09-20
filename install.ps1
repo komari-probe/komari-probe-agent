@@ -15,13 +15,41 @@ $GitHubProxy = ""
 $KomariArgs = @()
 $InstallVersion = ""
 
+function Get-InstallOptionValue {
+    param(
+        [string]$Option,
+        [int]$Index,
+        [string[]]$Arguments
+    )
+
+    if ($Index + 1 -ge $Arguments.Count -or [string]::IsNullOrWhiteSpace($Arguments[$Index + 1])) {
+        Log-Error "Option $Option requires a value."
+        exit 1
+    }
+
+    return $Arguments[$Index + 1]
+}
+
+function Invoke-Nssm {
+    param(
+        [string]$Action,
+        [string[]]$NssmArguments
+    )
+
+    & nssm @NssmArguments
+    if ($LASTEXITCODE -ne 0) {
+        Log-Error "nssm failed to $Action (exit code $LASTEXITCODE)."
+        exit 1
+    }
+}
+
 # Parse script arguments
 for ($i = 0; $i -lt $args.Count; $i++) {
     switch ($args[$i]) {
-        "--install-dir" { $InstallDir = $args[$i + 1]; $i++; continue }
-        "--install-service-name" { $ServiceName = $args[$i + 1]; $i++; continue }
-        "--install-ghproxy" { $GitHubProxy = $args[$i + 1]; $i++; continue }
-        "--install-version" { $InstallVersion = $args[$i + 1]; $i++; continue }
+        "--install-dir" { $InstallDir = Get-InstallOptionValue $args[$i] $i $args; $i++; continue }
+        "--install-service-name" { $ServiceName = Get-InstallOptionValue $args[$i] $i $args; $i++; continue }
+        "--install-ghproxy" { $GitHubProxy = Get-InstallOptionValue $args[$i] $i $args; $i++; continue }
+        "--install-version" { $InstallVersion = Get-InstallOptionValue $args[$i] $i $args; $i++; continue }
         Default { $KomariArgs += $args[$i] }
     }
 }
@@ -46,7 +74,13 @@ switch ($env:PROCESSOR_ARCHITECTURE) {
 
 # Ensure installation directory exists for nssm and agent
 Log-Step "Ensuring installation directory exists: $InstallDir"
-New-Item -ItemType Directory -Path $InstallDir -Force -ErrorAction SilentlyContinue | Out-Null # Ensure $InstallDir exists
+try {
+    New-Item -ItemType Directory -Path $InstallDir -Force -ErrorAction Stop | Out-Null
+}
+catch {
+    Log-Error "Failed to create installation directory '$InstallDir': $_"
+    exit 1
+}
 
 # Check for nssm and download if not present
 $nssmExeToUse = Join-Path $InstallDir "nssm.exe"
@@ -297,7 +331,6 @@ $agentVerified = $false
 # Download and verify before changing an existing installation. The binary may
 # come through a user-selected proxy, but the checksum manifest is always read
 # directly from the official GitHub release.
-New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
 Log-Info "URL: $DownloadUrl"
 try {
     Invoke-WebRequest -Uri $ChecksumUrl -OutFile $TemporaryChecksumPath -UseBasicParsing
@@ -340,16 +373,14 @@ Log-Success "Downloaded, verified, and saved to $AgentPath"
 # Register and start service
 Log-Step "Configuring Windows service with nssm..."
 $argString = $KomariArgs -join ' '
-# Ensure InstallDir and AgentPath are quoted if they contain spaces
-$quotedAgentPath = "`"$AgentPath`""
-nssm install $ServiceName $quotedAgentPath $argString
+Invoke-Nssm "install service '$ServiceName'" @("install", $ServiceName, $AgentPath, $argString)
 # Set display name and startup type using nssm
-nssm set $ServiceName DisplayName "Komari Probe Agent Service"
-nssm set $ServiceName Start SERVICE_AUTO_START
-nssm set $ServiceName AppExit Default Restart
-nssm set $ServiceName AppRestartDelay 5000
+Invoke-Nssm "set service display name" @("set", $ServiceName, "DisplayName", "Komari Probe Agent Service")
+Invoke-Nssm "set service startup type" @("set", $ServiceName, "Start", "SERVICE_AUTO_START")
+Invoke-Nssm "set service exit behavior" @("set", $ServiceName, "AppExit", "Default", "Restart")
+Invoke-Nssm "set service restart delay" @("set", $ServiceName, "AppRestartDelay", "5000")
 # Start the service using nssm
-nssm start $ServiceName
+Invoke-Nssm "start service '$ServiceName'" @("start", $ServiceName)
 Log-Success "Service $ServiceName installed and started using nssm."
 
 Log-Success "Komari Probe Agent installation completed!"

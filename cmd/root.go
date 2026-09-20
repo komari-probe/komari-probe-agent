@@ -15,9 +15,9 @@ import (
 func NewRootCmd() *cobra.Command {
 	cfg := config.Default()
 	root := &cobra.Command{
-		Use:   "komari-probe-agent",
-		Short: "Komari Probe Agent - Pure, lightweight, and high-precision server monitoring probe",
-		Long:  `Komari Probe Agent is a secure and unprivileged server monitoring probe.`,
+		Use:   "komari-agent",
+		Short: "Komari Probe Agent - Lightweight monitoring agent for Komari Probe",
+		Long:  `Komari Probe Agent collects host metrics, runs probes, and reports data to the Komari Probe control plane.`,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			if err := loadConfiguration(cmd, &cfg); err != nil {
 				return err
