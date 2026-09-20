@@ -10,19 +10,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/komari-probe/komari-probe-agent/internal/config"
 	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
 	"github.com/komari-probe/komari-probe-agent/pkg/idna"
 )
-
-// autoDiscoveryCredentials 自动发现配置结构体
-type autoDiscoveryCredentials struct {
-	UUID  string `json:"uuid"`
-	Token string `json:"token"`
-}
 
 // registrationRequest 注册请求结构体
 type registrationRequest struct {
@@ -37,61 +30,6 @@ type registrationResponse struct {
 		UUID  string `json:"uuid"`
 		Token string `json:"token"`
 	} `json:"data"`
-}
-
-// getAutoDiscoveryFilePath 获取自动发现配置文件路径
-func getAutoDiscoveryFilePath() string {
-	// 获取程序运行目录
-	execPath, err := os.Executable()
-	if err != nil {
-		log.Println("Failed to get executable path:", err)
-		return "auto-discovery.json"
-	}
-	execDir := filepath.Dir(execPath)
-	return filepath.Join(execDir, "auto-discovery.json")
-}
-
-// loadAutoDiscoveryCredentials 加载自动发现配置
-func loadAutoDiscoveryCredentials() (*autoDiscoveryCredentials, error) {
-	configPath := getAutoDiscoveryFilePath()
-
-	// 检查文件是否存在
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return nil, nil // 文件不存在，返回nil
-	}
-
-	// 读取文件内容
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read auto-discovery config: %w", err)
-	}
-
-	// 解析JSON
-	var credentials autoDiscoveryCredentials
-	if err := json.Unmarshal(data, &credentials); err != nil {
-		return nil, fmt.Errorf("failed to parse auto-discovery config: %w", err)
-	}
-
-	return &credentials, nil
-}
-
-// saveAutoDiscoveryCredentials 保存自动发现配置
-func saveAutoDiscoveryCredentials(credentials *autoDiscoveryCredentials) error {
-	configPath := getAutoDiscoveryFilePath()
-
-	// 序列化为JSON
-	data, err := json.MarshalIndent(credentials, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal auto-discovery config: %w", err)
-	}
-
-	// 写入文件
-	if err := os.WriteFile(configPath, data, 0o600); err != nil {
-		return fmt.Errorf("failed to write auto-discovery config: %w", err)
-	}
-
-	log.Printf("Auto-discovery config saved to: %s", configPath)
-	return nil
 }
 
 // registerWithAutoDiscovery uses the configured discovery key to register and
@@ -171,12 +109,6 @@ func registerWithAutoDiscovery(ctx context.Context, cfg config.Config, connectio
 		Token: registerResp.Data.Token,
 	}
 
-	if err := saveAutoDiscoveryCredentials(credentials); err != nil {
-		return nil, fmt.Errorf("failed to save auto-discovery config: %w", err)
-	}
-
-	log.Printf("Successfully registered with auto-discovery. UUID: %s", registerResp.Data.UUID)
-
 	return credentials, nil
 }
 
@@ -184,11 +116,15 @@ func registerWithAutoDiscovery(ctx context.Context, cfg config.Config, connectio
 // returns a copy of cfg with the effective token. It never mutates shared
 // process configuration.
 func ResolveAutoDiscovery(ctx context.Context, cfg config.Config, connections *connectivity.Manager) (config.Config, error) {
+	return resolveAutoDiscovery(ctx, cfg, connections, defaultCredentialStore())
+}
+
+func resolveAutoDiscovery(ctx context.Context, cfg config.Config, connections *connectivity.Manager, store credentialStore) (config.Config, error) {
 	if connections == nil {
 		connections = connectivity.NewManager(connectivity.Options{CustomDNSServer: cfg.CustomDNS})
 	}
 	// 尝试加载现有配置
-	credentials, err := loadAutoDiscoveryCredentials()
+	credentials, err := store.Load()
 	if err != nil {
 		log.Printf("Failed to load auto-discovery config: %v", err)
 		// 继续尝试注册
@@ -207,6 +143,10 @@ func ResolveAutoDiscovery(ctx context.Context, cfg config.Config, connections *c
 	if err != nil {
 		return cfg, err
 	}
+	if err := store.Save(credentials); err != nil {
+		return cfg, fmt.Errorf("save auto-discovery credentials: %w", err)
+	}
+	log.Printf("Successfully registered with auto-discovery. UUID: %s", credentials.UUID)
 	cfg.Token = credentials.Token
 	return cfg, nil
 }
