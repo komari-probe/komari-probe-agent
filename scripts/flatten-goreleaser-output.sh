@@ -14,4 +14,9 @@ while IFS=' ' read -r name path; do
 done < <(grep -oE '"name":"komari-agent-[^"]+","path":"[^"]+"' "$BUILD_DIR/artifacts.json" | sed -E 's/"name":"([^"]+)","path":"([^"]+)"/\1 \2/')
 
 find "$BUILD_DIR" -mindepth 1 -maxdepth 1 -type d -name "komari-agent_*" -exec rm -rf {} +
-rm -f "$BUILD_DIR/artifacts.json" "$BUILD_DIR/config.yaml" "$BUILD_DIR/metadata.json"
+rm -f "$BUILD_DIR/artifacts.json" "$BUILD_DIR/config.yaml" "$BUILD_DIR/metadata.json" "$BUILD_DIR/checksums.txt"
+
+(
+  cd "$BUILD_DIR"
+  sha256sum komari-agent-* > checksums.txt
+)

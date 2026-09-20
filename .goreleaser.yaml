@@ -48,7 +48,7 @@ archives:
     name_template: "komari-agent-{{ .Os }}-{{ .Arch }}"
 
 checksum:
-  disable: true
+  name_template: checksums.txt
 
 release:
   disable: true
