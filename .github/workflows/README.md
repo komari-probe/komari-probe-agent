@@ -1,6 +1,6 @@
 # GitHub Actions
 
-The Agent uses three workflows with non-overlapping responsibilities.
+Komari Probe Agent uses three workflows with non-overlapping responsibilities.
 
 | Workflow | Trigger | Output |
 | --- | --- | --- |
@@ -17,7 +17,7 @@ should be configured as a required check for `main`.
 
 `nightly.yaml` accepts only the current `main` commit. It creates a prerelease
 tagged `nightly-YYYYMMDD-HHMM` in UTC, removes older `nightly-*` prereleases,
-and publishes the mutable `:nightly` Docker tag. The Agent does not self-update;
+and publishes the mutable `:nightly` Docker tag. Komari Probe Agent does not self-update;
 container users must recreate or update their container.
 
 ## Stable releases

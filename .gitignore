@@ -8,6 +8,6 @@ komari-agent
 .komari-agent.exe.old
 build/
 auto-discovery.json
-fake-agent-client.json
+agent-simulator-client.json
 net_static.json
 config.json

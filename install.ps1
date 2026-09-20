@@ -1,4 +1,4 @@
-# Windows PowerShell installation script for Komari Agent
+# Windows PowerShell installation script for Komari Probe Agent
 
 # Logging functions with colors
 function Log-Info { param([string]$Message) Write-Host "$Message"    -ForegroundColor Cyan }
@@ -284,7 +284,7 @@ else {
         exit 1
     }
 }
-Log-Success "Installing Komari Agent version: $versionToInstall"
+Log-Success "Installing Komari Probe Agent version: $versionToInstall"
 
 # Construct download URL
 $BinaryName = "komari-agent-windows-$arch.exe"
@@ -344,7 +344,7 @@ $argString = $KomariArgs -join ' '
 $quotedAgentPath = "`"$AgentPath`""
 nssm install $ServiceName $quotedAgentPath $argString
 # Set display name and startup type using nssm
-nssm set $ServiceName DisplayName "Komari Agent Service"
+nssm set $ServiceName DisplayName "Komari Probe Agent Service"
 nssm set $ServiceName Start SERVICE_AUTO_START
 nssm set $ServiceName AppExit Default Restart
 nssm set $ServiceName AppRestartDelay 5000
@@ -352,6 +352,6 @@ nssm set $ServiceName AppRestartDelay 5000
 nssm start $ServiceName
 Log-Success "Service $ServiceName installed and started using nssm."
 
-Log-Success "Komari Agent installation completed!"
+Log-Success "Komari Probe Agent installation completed!"
 Log-Config "Service name: $ServiceName"
 Log-Config "Arguments: $argString"

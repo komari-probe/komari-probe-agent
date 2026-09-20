@@ -140,7 +140,7 @@ if [ "$EUID" -ne 0 ] && [ "$os_name" = "linux" ]; then
 fi
 
 echo -e "${WHITE}===========================================${NC}"
-echo -e "${WHITE}    Komari Agent Installation Script     ${NC}"
+echo -e "${WHITE} Komari Probe Agent Installation Script  ${NC}"
 echo -e "${WHITE}===========================================${NC}"
 echo ""
 log_config "Installation configuration:"
@@ -478,7 +478,7 @@ chmod +x "$komari_agent_path"
 if [ "$EUID" -eq 0 ] && [ "$service_user" != "root" ]; then
     chown "$service_user" "$komari_agent_path"
 fi
-log_success "Komari-agent installed to ${GREEN}$komari_agent_path${NC}"
+log_success "Komari Probe Agent installed to ${GREEN}$komari_agent_path${NC}"
 
 # Detect init system and configure service
 log_step "Configuring system service..."
@@ -584,7 +584,7 @@ if [ "$init_system" = "nixos" ]; then
     log_info "Please add the following to your NixOS configuration:"
     echo ""
     echo -e "${CYAN}systemd.services.${service_name} = {${NC}"
-    echo -e "${CYAN}  description = \"Komari Agent Service\";${NC}"
+    echo -e "${CYAN}  description = \"Komari Probe Agent Service\";${NC}"
     echo -e "${CYAN}  after = [ \"network.target\" ];${NC}"
     echo -e "${CYAN}  wantedBy = [ \"multi-user.target\" ];${NC}"
     echo -e "${CYAN}  serviceConfig = {${NC}"
@@ -605,8 +605,8 @@ elif [ "$init_system" = "openrc" ]; then
     cat > "$service_file" << EOF
 #!/sbin/openrc-run
 
-name="Komari Agent Service"
-description="Komari monitoring agent"
+name="Komari Probe Agent Service"
+description="Komari Probe monitoring agent"
 command="${komari_agent_path}"
 command_args="${komari_args}"
 command_user="${service_user}"
@@ -633,7 +633,7 @@ elif [ "$init_system" = "systemd-user" ]; then
     mkdir -p "$service_dir"
     cat > "$service_file" << EOF
 [Unit]
-Description=Komari Agent Service
+Description=Komari Probe Agent Service
 After=network.target
 
 [Service]
@@ -654,7 +654,7 @@ elif [ "$init_system" = "systemd" ]; then
     service_file="/etc/systemd/system/${service_name}.service"
     cat > "$service_file" << EOF
 [Unit]
-Description=Komari Agent Service
+Description=Komari Probe Agent Service
 After=network.target
 
 [Service]
@@ -802,8 +802,8 @@ elif [ "$init_system" = "upstart" ]; then
     log_info "Using upstart for service management"
     service_file="/etc/init/${service_name}.conf"
     cat > "$service_file" << EOF
-# KOMARI Agent
-description "Komari Agent Service"
+# Komari Probe Agent
+description "Komari Probe Agent Service"
 
 chdir ${target_dir}
 start on filesystem or runlevel [2345]
@@ -839,13 +839,12 @@ fi
 echo ""
 echo -e "${WHITE}===========================================${NC}"
 if [ -f /etc/NIXOS ]; then
-    log_success "Komari-agent binary installed!"
+    log_success "Komari Probe Agent binary installed!"
     log_warning "NixOS requires declarative service configuration."
     log_info "Please add the service configuration to your NixOS config and rebuild."
 else
-    log_success "Komari-agent installation completed!"
+    log_success "Komari Probe Agent installation completed!"
 fi
 log_config "Service: ${GREEN}$service_name${NC}"
 log_config "Arguments: ${GREEN}$komari_args${NC}"
 echo -e "${WHITE}===========================================${NC}"
-

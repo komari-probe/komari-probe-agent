@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A small fake Komari v2 agent for testing a server's agent ingestion path."""
+"""A small Komari v2 agent simulator for testing a server's ingestion path."""
 
 import argparse
 import json
@@ -16,11 +16,11 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 
-DEFAULT_STATE_FILE = Path(__file__).with_name("fake-agent-client.json")
+DEFAULT_STATE_FILE = Path(__file__).with_name("agent-simulator-client.json")
 JSONRPC_VERSION = "2.0"
 
 
-class FakeAgent:
+class AgentSimulator:
     def __init__(self, server: str, client: dict[str, str], interval: float, timeout: float):
         self.server = server.rstrip("/")
         self.token = client["token"]
@@ -76,7 +76,7 @@ class FakeAgent:
             "disk_total": 100 * 1024**3,
             "gpu_name": "",
             "virtualization": "test",
-            "version": "fake-agent/1.0",
+            "version": "agent-simulator/1.0",
         }
         self.rpc("agent.basicInfo", {"info": info}, "basic-info")
 
@@ -94,7 +94,7 @@ class FakeAgent:
             "connections": {"tcp": random.randint(1, 100), "udp": random.randint(0, 20)},
             "uptime": int(time.monotonic()),
             "process": random.randint(30, 150),
-            "message": "fake-agent",
+            "message": "agent-simulator",
         }
 
     def take_ack_ids(self) -> list[str]:
@@ -122,7 +122,7 @@ class FakeAgent:
                     "value": random.randint(10, 100),
                     "finished_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 }, f"ping-{task_id}-{time.time_ns()}")
-                logging.info("reported fake ping result for task %d", task_id)
+                logging.info("reported simulated ping result for task %d", task_id)
                 if event_id:
                     with self.ack_lock:
                         self.pending_ack_ids.append(event_id)
@@ -148,7 +148,7 @@ class FakeAgent:
         while not self.stop_event.is_set():
             try:
                 self.rpc("agent.report", {"report": self.report(), "ack_event_ids": self.take_ack_ids()}, f"report-{time.time_ns()}")
-                logging.info("reported fake metrics")
+                logging.info("reported simulated metrics")
             except RuntimeError as exc:
                 logging.warning("metric report failed: %s", exc)
             self.stop_event.wait(self.interval)
@@ -183,11 +183,11 @@ def register_client(server: str, adkey: str, name: str, timeout: float) -> dict[
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate fake Komari v2 agent reports and handle only ping events.")
+    parser = argparse.ArgumentParser(description="Generate simulated Komari v2 agent reports and handle only ping events.")
     parser.add_argument("--server", required=True, help="Komari server URL, e.g. https://komari.example.com")
     parser.add_argument("--adkey", required=True, help="AutoDiscovery key; used only with -new")
-    parser.add_argument("-new", action="store_true", dest="new_client", help="register and save a new fake client")
-    parser.add_argument("--name", default=f"fake-{socket.gethostname()}", help="name suffix for a newly registered client")
+    parser.add_argument("-new", action="store_true", dest="new_client", help="register and save a new simulated client")
+    parser.add_argument("--name", default=f"simulator-{socket.gethostname()}", help="name suffix for a newly registered client")
     parser.add_argument("--state", type=Path, default=DEFAULT_STATE_FILE, help=f"local client state file (default: {DEFAULT_STATE_FILE.name})")
     parser.add_argument("--interval", type=float, default=3.0, help="metric report interval in seconds (default: 3)")
     parser.add_argument("--timeout", type=float, default=35.0, help="HTTP timeout in seconds (default: 35)")
@@ -204,7 +204,7 @@ def main() -> int:
             client = load_client(args.state)
             if client["server"].rstrip("/") != args.server.rstrip("/"):
                 raise RuntimeError(f"saved client belongs to {client['server']}; use its server or run with -new")
-        FakeAgent(args.server, client, args.interval, args.timeout).run()
+        AgentSimulator(args.server, client, args.interval, args.timeout).run()
     except KeyboardInterrupt:
         logging.info("stopped")
     except RuntimeError as exc:
