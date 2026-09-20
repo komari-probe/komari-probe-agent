@@ -1,6 +1,10 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
+	"net/url"
+	"strings"
+)
 
 type Config struct {
 	AutoDiscoveryKey    string  `json:"auto_discovery_key" env:"AGENT_AUTO_DISCOVERY_KEY"`         // 自动发现密钥
@@ -43,6 +47,22 @@ func Default() Config {
 // Validate verifies runtime values that would otherwise cause invalid timers
 // or connections when configuration is loaded from a file or environment.
 func (c Config) Validate() error {
+	if c.Endpoint == "" {
+		return fmt.Errorf("endpoint is required")
+	}
+	endpoint, err := url.Parse(c.Endpoint)
+	if err != nil || endpoint.Scheme == "" || endpoint.Host == "" {
+		return fmt.Errorf("endpoint must be an absolute HTTP(S) URL")
+	}
+	if endpoint.Scheme != "http" && endpoint.Scheme != "https" {
+		return fmt.Errorf("endpoint scheme must be http or https")
+	}
+	if c.Token == "" && c.AutoDiscoveryKey == "" {
+		return fmt.Errorf("token or auto-discovery key is required")
+	}
+	if strings.TrimSpace(c.Token) != c.Token || strings.TrimSpace(c.AutoDiscoveryKey) != c.AutoDiscoveryKey {
+		return fmt.Errorf("token and auto-discovery key cannot contain leading or trailing whitespace")
+	}
 	if c.Interval <= 0 {
 		return fmt.Errorf("interval must be greater than zero")
 	}

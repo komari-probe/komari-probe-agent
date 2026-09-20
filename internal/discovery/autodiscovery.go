@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -95,7 +96,7 @@ func saveAutoDiscoveryCredentials(credentials *autoDiscoveryCredentials) error {
 
 // registerWithAutoDiscovery uses the configured discovery key to register and
 // returns the credentials that should be used for the current Agent run.
-func registerWithAutoDiscovery(cfg config.Config, connections *connectivity.Manager) (*autoDiscoveryCredentials, error) {
+func registerWithAutoDiscovery(ctx context.Context, cfg config.Config, connections *connectivity.Manager) (*autoDiscoveryCredentials, error) {
 	// 构造注册请求
 	requestData := registrationRequest{
 		Key: cfg.AutoDiscoveryKey,
@@ -127,7 +128,7 @@ func registerWithAutoDiscovery(cfg config.Config, connections *connectivity.Mana
 	registerURL := fmt.Sprintf("%s/api/clients/register?name=%s", endpoint, url.QueryEscape(hostname))
 
 	// 创建HTTP请求
-	req, err := http.NewRequest("POST", registerURL, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, registerURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create register request: %w", err)
 	}
@@ -182,7 +183,7 @@ func registerWithAutoDiscovery(cfg config.Config, connections *connectivity.Mana
 // ResolveAutoDiscovery loads or registers auto-discovery credentials and
 // returns a copy of cfg with the effective token. It never mutates shared
 // process configuration.
-func ResolveAutoDiscovery(cfg config.Config, connections *connectivity.Manager) (config.Config, error) {
+func ResolveAutoDiscovery(ctx context.Context, cfg config.Config, connections *connectivity.Manager) (config.Config, error) {
 	if connections == nil {
 		connections = connectivity.NewManager(connectivity.Options{CustomDNSServer: cfg.CustomDNS})
 	}
@@ -202,7 +203,7 @@ func ResolveAutoDiscovery(cfg config.Config, connections *connectivity.Manager) 
 
 	// 配置文件不存在，进行注册
 	log.Println("Auto-discovery config not found, registering with server...")
-	credentials, err = registerWithAutoDiscovery(cfg, connections)
+	credentials, err = registerWithAutoDiscovery(ctx, cfg, connections)
 	if err != nil {
 		return cfg, err
 	}

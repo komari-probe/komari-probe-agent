@@ -1,8 +1,10 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -14,8 +16,13 @@ func LoadFile(path string, dst *Config) error {
 	if err != nil {
 		return fmt.Errorf("read config file: %w", err)
 	}
-	if err := json.Unmarshal(contents, dst); err != nil {
+	decoder := json.NewDecoder(bytes.NewReader(contents))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(dst); err != nil {
 		return fmt.Errorf("parse config file: %w", err)
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		return fmt.Errorf("parse config file: expected a single JSON object")
 	}
 	return nil
 }

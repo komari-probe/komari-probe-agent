@@ -1,6 +1,10 @@
 package config
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestApplyEnvironmentOverlaysValues(t *testing.T) {
 	cfg := Config{Interval: 3, MaxRetries: 3, IgnoreUnsafeCert: false, Token: "from-file"}
@@ -30,10 +34,14 @@ func TestConfigValidate(t *testing.T) {
 		cfg  Config
 		want bool
 	}{
-		{name: "defaults", cfg: Default()},
-		{name: "zero interval", cfg: Config{Interval: 0, MaxRetries: 0, ReconnectInterval: 1, InfoReportInterval: 1}, want: true},
-		{name: "negative retries", cfg: Config{Interval: 1, MaxRetries: -1, ReconnectInterval: 1, InfoReportInterval: 1}, want: true},
-		{name: "invalid IP preference", cfg: Config{Interval: 1, MaxRetries: 0, ReconnectInterval: 1, InfoReportInterval: 1, PreferIPVersion: "5"}, want: true},
+		{name: "valid token", cfg: Config{Endpoint: "https://example.com", Token: "token", Interval: 1, MaxRetries: 0, ReconnectInterval: 1, InfoReportInterval: 1}},
+		{name: "valid auto discovery", cfg: Config{Endpoint: "https://example.com", AutoDiscoveryKey: "key", Interval: 1, MaxRetries: 0, ReconnectInterval: 1, InfoReportInterval: 1}},
+		{name: "missing endpoint", cfg: Config{Token: "token", Interval: 1, MaxRetries: 0, ReconnectInterval: 1, InfoReportInterval: 1}, want: true},
+		{name: "invalid endpoint", cfg: Config{Endpoint: "example.com", Token: "token", Interval: 1, MaxRetries: 0, ReconnectInterval: 1, InfoReportInterval: 1}, want: true},
+		{name: "missing credentials", cfg: Config{Endpoint: "https://example.com", Interval: 1, MaxRetries: 0, ReconnectInterval: 1, InfoReportInterval: 1}, want: true},
+		{name: "zero interval", cfg: Config{Endpoint: "https://example.com", Token: "token", Interval: 0, MaxRetries: 0, ReconnectInterval: 1, InfoReportInterval: 1}, want: true},
+		{name: "negative retries", cfg: Config{Endpoint: "https://example.com", Token: "token", Interval: 1, MaxRetries: -1, ReconnectInterval: 1, InfoReportInterval: 1}, want: true},
+		{name: "invalid IP preference", cfg: Config{Endpoint: "https://example.com", Token: "token", Interval: 1, MaxRetries: 0, ReconnectInterval: 1, InfoReportInterval: 1, PreferIPVersion: "5"}, want: true},
 	}
 
 	for _, tt := range tests {
@@ -42,6 +50,16 @@ func TestConfigValidate(t *testing.T) {
 				t.Fatalf("Validate() error = %v, want error = %t", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestLoadFileRejectsUnknownFields(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(path, []byte(`{"endpoint":"https://example.com","token":"token","typo":true}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := LoadFile(path, &Config{}); err == nil {
+		t.Fatal("LoadFile() accepted an unknown field")
 	}
 }
 
