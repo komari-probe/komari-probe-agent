@@ -4,6 +4,7 @@ go 1.27.0
 
 require (
 	github.com/gorilla/websocket v1.5.3
+	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
 	github.com/klauspost/cpuid/v2 v2.4.0
 	github.com/prometheus-community/pro-bing v0.9.1
 	github.com/shirou/gopsutil/v4 v4.26.8

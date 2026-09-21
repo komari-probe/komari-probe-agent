@@ -30,6 +30,7 @@ func NewRootCmd() *cobra.Command {
 	}
 	bindPersistentFlags(root, &cfg)
 	root.AddCommand(newCheckMemCmd(&cfg), newListDiskCmd(&cfg))
+	root.AddCommand(newUpdateCmd(&cfg))
 	return root
 }
 
