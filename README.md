@@ -71,4 +71,8 @@ export AGENT_TOKEN="your-token"
 ./komari-agent --help
 ```
 
+### 手动更新
+
+在已安装 Agent 的主机上运行 `komari-agent update`。该命令只在用户显式执行时检查官方 GitHub Release，按当前系统和架构下载二进制，并以 Release 中的 `checksums.txt` 校验 SHA-256 后替换文件；它不会启用启动检查或定时更新。替换完成后重启对应 Agent 服务。
+
 实现详见 `cmd/root.go` 与 `internal/config/`。
