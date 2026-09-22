@@ -10,9 +10,11 @@ Komari Probe Agent is a lightweight monitoring component deployed on client serv
 
 ## Installation
 
-Add a node in the Komari Probe Admin Panel (`/admin` -> Node Management) to generate an **Agent Token**, then run the installation command on your target host:
+> 💡 **Easiest Method (Recommended)**: Log in to the Komari Probe Admin Panel (`/admin`), navigate to **Node Management** $\rightarrow$ click **Add Node**, and simply **copy the auto-generated one-click command** from the popup. The system automatically populates your panel address and unique token — just paste and run on your target machine!
 
-### 1. Host Installation (Recommended)
+If installing silently via CI/CD or automated scripts without using the web dashboard, use the standard commands below:
+
+### 1. Host Installation
 Compatible with Linux and macOS. Installs into `/opt/komari` by default and registers as a system service `komari-agent.service`.
 
 - **Stable Release**:
