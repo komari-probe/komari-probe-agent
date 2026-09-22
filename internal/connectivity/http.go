@@ -52,7 +52,7 @@ func (manager *Manager) buildTransport(timeout time.Duration, tlsConfig *tls.Con
 			}
 			manager.sortIPsByPreference(ips, preferIPVersion)
 			for _, ip := range ips {
-				dialer := &net.Dialer{Timeout: timeout, KeepAlive: 30 * time.Second, DualStack: true}
+				dialer := &net.Dialer{Timeout: timeout, KeepAlive: 30 * time.Second}
 				conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(ip, port))
 				if err == nil {
 					return conn, nil
