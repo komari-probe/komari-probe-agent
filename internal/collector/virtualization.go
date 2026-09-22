@@ -96,7 +96,7 @@ func detectContainer() string {
 	if fileExists("/dev/.lxc-boot-id") {
 		return "lxc"
 	}
-	if fileExists("/.komari-agent-container") {
+	if fileExists("/.sonar-agent-container") || fileExists("/.komari-agent-container") {
 		return "container"
 	}
 	// (Removed mountinfo heuristics which caused host false positives when Docker/Kube tools are installed.)

@@ -1,4 +1,4 @@
-module github.com/komari-probe/komari-probe-agent
+module github.com/sonar-probe/sonar-agent
 
 go 1.27.0
 

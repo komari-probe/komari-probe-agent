@@ -2,11 +2,11 @@ package reporter
 
 import (
 	"context"
-	log "github.com/komari-probe/komari-probe-agent/internal/logging"
+	log "github.com/sonar-probe/sonar-agent/internal/logging"
 	"time"
 
-	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
-	"github.com/komari-probe/komari-probe-agent/internal/task"
+	"github.com/sonar-probe/sonar-agent/internal/connectivity"
+	"github.com/sonar-probe/sonar-agent/internal/task"
 )
 
 func (r *Reporter) reportPingTask(ctx context.Context, conn *connectivity.SafeConn, taskID uint, pingType, pingTarget string) {

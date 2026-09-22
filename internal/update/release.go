@@ -71,7 +71,7 @@ func (c *Client) getJSON(path string, target any) error {
 		return err
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("User-Agent", "komari-probe-agent-updater")
+	req.Header.Set("User-Agent", "sonar-agent-updater")
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("request GitHub release metadata: %w", err)
@@ -86,7 +86,7 @@ func (c *Client) getJSON(path string, target any) error {
 	return nil
 }
 func expectedAssetName(goos, goarch string) string {
-	n := "komari-agent-" + goos + "-" + goarch
+	n := "sonar-agent-" + goos + "-" + goarch
 	if goos == "windows" {
 		n += ".exe"
 	}

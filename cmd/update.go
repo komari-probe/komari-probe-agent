@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/komari-probe/komari-probe-agent/internal/config"
-	"github.com/komari-probe/komari-probe-agent/internal/update"
-	"github.com/komari-probe/komari-probe-agent/internal/version"
+	"github.com/sonar-probe/sonar-agent/internal/config"
+	"github.com/sonar-probe/sonar-agent/internal/update"
+	"github.com/sonar-probe/sonar-agent/internal/version"
 	"github.com/spf13/cobra"
 )
 

@@ -3,12 +3,12 @@ package reporter
 import (
 	"context"
 	"fmt"
-	log "github.com/komari-probe/komari-probe-agent/internal/logging"
+	log "github.com/sonar-probe/sonar-agent/internal/logging"
 	"sync"
 	"time"
 
-	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
-	v2 "github.com/komari-probe/komari-probe-agent/internal/rpc/v2"
+	"github.com/sonar-probe/sonar-agent/internal/connectivity"
+	v2 "github.com/sonar-probe/sonar-agent/internal/rpc/v2"
 )
 
 // runPostFallback exchanges v2 reports over HTTP until WebSocket connectivity returns.

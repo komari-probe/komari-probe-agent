@@ -29,8 +29,15 @@ func defaultCredentialStore() credentialStore {
 	if err != nil {
 		return fileCredentialStore{path: legacyPath}
 	}
+	sonarPath := filepath.Join(configDir, "sonar-agent", "auto-discovery.json")
+	komariPath := filepath.Join(configDir, "komari-agent", "auto-discovery.json")
+	if _, err := os.Stat(sonarPath); os.IsNotExist(err) {
+		if _, errOld := os.Stat(komariPath); errOld == nil {
+			legacyPath = komariPath
+		}
+	}
 	return fileCredentialStore{
-		path:       filepath.Join(configDir, "komari-agent", "auto-discovery.json"),
+		path:       sonarPath,
 		legacyPath: legacyPath,
 	}
 }

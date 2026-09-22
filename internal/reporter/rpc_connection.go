@@ -2,14 +2,14 @@ package reporter
 
 import (
 	"context"
-	log "github.com/komari-probe/komari-probe-agent/internal/logging"
+	log "github.com/sonar-probe/sonar-agent/internal/logging"
 	"math"
 	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
-	"github.com/komari-probe/komari-probe-agent/pkg/idna"
+	"github.com/sonar-probe/sonar-agent/internal/connectivity"
+	"github.com/sonar-probe/sonar-agent/pkg/idna"
 )
 
 // Run sends the initial basic information and maintains the reporting connection.

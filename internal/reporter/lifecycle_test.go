@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/komari-probe/komari-probe-agent/internal/collector"
+	"github.com/sonar-probe/sonar-agent/internal/collector"
 )
 
 func TestRunStaticInfoReporterStopsWithContext(t *testing.T) {

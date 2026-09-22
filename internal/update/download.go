@@ -17,7 +17,7 @@ func (c *Client) downloadVerifyAndApply(candidate Candidate, executable string) 
 	if err != nil {
 		return err
 	}
-	temporary, err := os.CreateTemp("", "komari-agent-update-*")
+	temporary, err := os.CreateTemp("", "sonar-agent-update-*")
 	if err != nil {
 		return fmt.Errorf("create update download: %w", err)
 	}
@@ -82,7 +82,7 @@ func (c *Client) get(url string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "komari-probe-agent-updater")
+	req.Header.Set("User-Agent", "sonar-agent-updater")
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return nil, err

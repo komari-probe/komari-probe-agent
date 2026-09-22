@@ -2,11 +2,11 @@ package cmd
 
 import (
 	"fmt"
-	log "github.com/komari-probe/komari-probe-agent/internal/logging"
+	log "github.com/sonar-probe/sonar-agent/internal/logging"
 	"os"
 
-	"github.com/komari-probe/komari-probe-agent/internal/app"
-	"github.com/komari-probe/komari-probe-agent/internal/config"
+	"github.com/sonar-probe/sonar-agent/internal/app"
+	"github.com/sonar-probe/sonar-agent/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -15,9 +15,9 @@ import (
 func NewRootCmd() *cobra.Command {
 	cfg := config.Default()
 	root := &cobra.Command{
-		Use:   "komari-agent",
-		Short: "Komari Probe Agent - Lightweight monitoring agent for Komari Probe",
-		Long:  `Komari Probe Agent collects host metrics, runs probes, and reports data to the Komari Probe control plane.`,
+		Use:   "sonar-agent",
+		Short: "Sonar Agent - Lightweight monitoring agent for Sonar",
+		Long:  `Sonar Agent collects host metrics, runs probes, and reports data to the Sonar control plane.`,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			if err := loadConfiguration(cmd, &cfg); err != nil {
 				return err

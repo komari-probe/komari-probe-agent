@@ -3,7 +3,7 @@ package connectivity
 import (
 	"context"
 	"fmt"
-	log "github.com/komari-probe/komari-probe-agent/internal/logging"
+	log "github.com/sonar-probe/sonar-agent/internal/logging"
 	"net"
 	"strings"
 	"time"

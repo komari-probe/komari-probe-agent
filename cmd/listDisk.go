@@ -2,11 +2,11 @@ package cmd
 
 import (
 	"fmt"
-	log "github.com/komari-probe/komari-probe-agent/internal/logging"
+	log "github.com/sonar-probe/sonar-agent/internal/logging"
 	"text/tabwriter"
 
-	"github.com/komari-probe/komari-probe-agent/internal/collector"
-	"github.com/komari-probe/komari-probe-agent/internal/config"
+	"github.com/sonar-probe/sonar-agent/internal/collector"
+	"github.com/sonar-probe/sonar-agent/internal/config"
 	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/spf13/cobra"
 )

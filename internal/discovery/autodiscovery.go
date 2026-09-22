@@ -5,16 +5,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	log "github.com/komari-probe/komari-probe-agent/internal/logging"
+	log "github.com/sonar-probe/sonar-agent/internal/logging"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"time"
 
-	"github.com/komari-probe/komari-probe-agent/internal/config"
-	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
-	"github.com/komari-probe/komari-probe-agent/pkg/idna"
+	"github.com/sonar-probe/sonar-agent/internal/config"
+	"github.com/sonar-probe/sonar-agent/internal/connectivity"
+	"github.com/sonar-probe/sonar-agent/pkg/idna"
 )
 
 // registrationRequest 注册请求结构体

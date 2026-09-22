@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	v2 "github.com/komari-probe/komari-probe-agent/internal/rpc/v2"
+	v2 "github.com/sonar-probe/sonar-agent/internal/rpc/v2"
 )
 
 func TestGzipPayloadRoundTrip(t *testing.T) {

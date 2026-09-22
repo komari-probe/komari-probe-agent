@@ -1,5 +1,5 @@
 // Package update implements explicitly requested Agent binary updates.
-// It never starts a timer and is only invoked by the `komari-agent update` command.
+// It never starts a timer and is only invoked by the `sonar-agent update` command.
 package update
 
 import (
@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	Repo          = "komari-probe/komari-probe-agent"
+	Repo          = "sonar-probe/sonar-agent"
 	githubAPIBase = "https://api.github.com"
 	checksumName  = "checksums.txt"
 )
