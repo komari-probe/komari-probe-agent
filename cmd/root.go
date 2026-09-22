@@ -185,5 +185,5 @@ func bindPersistentFlags(command *cobra.Command, cfg *config.Config) {
 	command.PersistentFlags().BoolVar(&cfg.DisableCompression, "disable-compression", false, "Disable v2 gzip/permessage-deflate compression")
 	command.PersistentFlags().StringVar(&cfg.PreferIPVersion, "prefer-ip-version", "", "Prefer IP version for dashboard connections: 4 or 6")
 	command.PersistentFlags().StringVar(&cfg.LogLevel, "log-level", defaults.LogLevel, "Minimum log level: debug, info, warn, or error")
-	command.PersistentFlags().ParseErrorsWhitelist.UnknownFlags = true
+	command.PersistentFlags().ParseErrorsAllowlist.UnknownFlags = true
 }

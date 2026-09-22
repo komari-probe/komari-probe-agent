@@ -68,7 +68,7 @@ jobs:
       - name: Run Staticcheck
         uses: dominikh/staticcheck-action@v1
         with:
-          version: "2026.1"
+          version: "v0.8.1"
           install-go: false
 
   release-build:

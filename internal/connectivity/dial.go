@@ -31,7 +31,7 @@ func (manager *Manager) NewDialContextWithPreference(timeout time.Duration, pref
 
 		var lastErr error
 		for _, ip := range ips {
-			dialer := &net.Dialer{Timeout: timeout, KeepAlive: 30 * time.Second, DualStack: true}
+			dialer := &net.Dialer{Timeout: timeout, KeepAlive: 30 * time.Second}
 			conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(ip, port))
 			if err == nil {
 				return conn, nil
