@@ -92,17 +92,17 @@ jobs:
           CGO_ENABLED: 0
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
-          BINARY_NAME="komari-agent-${GOOS}-${GOARCH}"
+          BINARY_NAME="sonar-agent-${GOOS}-${GOARCH}"
           if [ "${GOOS}" = "windows" ]; then
             BINARY_NAME="${BINARY_NAME}.exe"
           fi
-          go build -trimpath -ldflags="-X github.com/komari-probe/komari-probe-agent/internal/version.CurrentVersion=${VERSION}" -o "${BINARY_NAME}" ./cmd/komari-probe-agent
+          go build -trimpath -ldflags="-X github.com/sonar-probe/sonar-agent/internal/version.CurrentVersion=${VERSION}" -o "${BINARY_NAME}" ./cmd/sonar-agent
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
-          name: komari-agent-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: komari-agent-${{ matrix.goos }}-${{ matrix.goarch }}*
+          name: sonar-agent-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: sonar-agent-${{ matrix.goos }}-${{ matrix.goarch }}*
 
   publish-release:
     needs: [prepare, build-binaries]
@@ -137,7 +137,7 @@ jobs:
         run: |
           (
             cd artifacts
-            sha256sum komari-agent-* > checksums.txt
+            sha256sum sonar-agent-* > checksums.txt
           )
 
       - name: Verify nightly release assets
@@ -203,9 +203,9 @@ jobs:
           CGO_ENABLED: 0
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
-          LDFLAGS="-X github.com/komari-probe/komari-probe-agent/internal/version.CurrentVersion=${VERSION}"
-          GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="${LDFLAGS}" -o komari-agent-linux-amd64 ./cmd/komari-probe-agent
-          GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="${LDFLAGS}" -o komari-agent-linux-arm64 ./cmd/komari-probe-agent
+          LDFLAGS="-X github.com/sonar-probe/sonar-agent/internal/version.CurrentVersion=${VERSION}"
+          GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="${LDFLAGS}" -o sonar-agent-linux-amd64 ./cmd/sonar-agent
+          GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="${LDFLAGS}" -o sonar-agent-linux-arm64 ./cmd/sonar-agent
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

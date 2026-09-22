@@ -6,12 +6,12 @@ WORKDIR /app
 ARG TARGETOS
 ARG TARGETARCH
 
-COPY --chmod=755 komari-agent-${TARGETOS}-${TARGETARCH} /app/komari-agent
+COPY --chmod=755 sonar-agent-${TARGETOS}-${TARGETARCH} /app/sonar-agent
 
-RUN touch /.komari-agent-container
+RUN ln -sf /app/sonar-agent /app/komari-agent && touch /.sonar-agent-container && touch /.komari-agent-container
 
-ENTRYPOINT ["/app/komari-agent"]
+ENTRYPOINT ["/app/sonar-agent"]
 # 运行时请指定参数
 # Please specify parameters at runtime.
-# eg: docker run komari-agent -e example.com -t token
+# eg: docker run sonar-agent -e example.com -t token
 CMD ["--help"]
