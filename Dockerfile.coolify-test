@@ -1,3 +1,4 @@
+# webhook 验证
 # 仅供内部测试环境使用（Coolify 从源码构建），不用于正式发布。
 # 正式发布走 .github/workflows 里的交叉编译 + goreleaser 流程，不要改那一套。
 #
