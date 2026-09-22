@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Migrate a single docker run Agent container without Compose or Coolify.
 set -u -o pipefail
-CONTAINER=""; TARGET_IMAGE=""; CONFIG_PATH="/app/auto-discovery.json"; BACKUP_ROOT="/var/backups/komari-agent-docker-run"; BACKUP_DIR=""; OLD_NAME=""; CONFIG_CAPTURED=0; CONFIG_MOUNTED=0; CONFIG_BACKUP=""; CONFIG_HOST_PATH=""
-die(){ echo "[komari-agent-docker-run] ERROR: $*" >&2; exit 1; }; log(){ echo "[komari-agent-docker-run] $*"; }
+CONTAINER=""; TARGET_IMAGE=""; CONFIG_PATH="/app/auto-discovery.json"; BACKUP_ROOT="/var/backups/sonar-agent-docker-run"; BACKUP_DIR=""; OLD_NAME=""; CONFIG_CAPTURED=0; CONFIG_MOUNTED=0; CONFIG_BACKUP=""; CONFIG_HOST_PATH=""
+die(){ echo "[sonar-agent-docker-run] ERROR: $*" >&2; exit 1; }; log(){ echo "[sonar-agent-docker-run] $*"; }
 usage(){ cat <<'EOF'
 Usage: sudo bash migrate-agent-docker-run.sh --container NAME --target-image IMAGE [options]
 
@@ -13,13 +13,13 @@ the old container if the new one cannot run. No Compose or Coolify is needed.
 Options:
   --config-path PATH       Credential file in the container (default /app/auto-discovery.json)
   --config-host-path PATH  Persistent host path for a container-local credential
-  --backup-root PATH       Default /var/backups/komari-agent-docker-run
+  --backup-root PATH       Default /var/backups/sonar-agent-docker-run
 EOF
 }
 while [ $# -gt 0 ]; do case "$1" in --container) CONTAINER=$2;shift;;--target-image) TARGET_IMAGE=$2;shift;;--config-path) CONFIG_PATH=$2;shift;;--config-host-path) CONFIG_HOST_PATH=$2;shift;;--backup-root) BACKUP_ROOT=$2;shift;;-h|--help) usage;exit;;*) die "Unknown option: $1";;esac;shift;done
 [ "${EUID:-$(id -u)}" -eq 0 ] || die "Run as root."; command -v docker >/dev/null || die "docker is required"; command -v python3 >/dev/null || die "python3 is required"; command -v curl >/dev/null || die "curl is required"
 [ -n "$CONTAINER" ] && [ -n "$TARGET_IMAGE" ] || { usage; exit 1; }; docker inspect "$CONTAINER" >/dev/null 2>&1 || die "Container not found: $CONTAINER"
-CID=$(docker inspect -f '{{.Id}}' "$CONTAINER"); INSPECT_FILE=/tmp/komari-agent-inspect.$$; docker inspect "$CONTAINER" > "$INSPECT_FILE"; trap 'rm -f "$INSPECT_FILE"' EXIT
+CID=$(docker inspect -f '{{.Id}}' "$CONTAINER"); INSPECT_FILE=/tmp/sonar-agent-inspect.$$; docker inspect "$CONTAINER" > "$INSPECT_FILE"; trap 'rm -f "$INSPECT_FILE"' EXIT
 ID=$(date -u +%Y%m%dT%H%M%SZ); BACKUP_DIR="$BACKUP_ROOT/$ID"; mkdir -p "$BACKUP_DIR"; cp "$INSPECT_FILE" "$BACKUP_DIR/container.inspect.json"; CONFIG_BACKUP="$BACKUP_DIR/$(basename "$CONFIG_PATH")"
 docker cp "$CID:$CONFIG_PATH" "$CONFIG_BACKUP" >/dev/null 2>&1 && [ -f "$CONFIG_BACKUP" ] && CONFIG_CAPTURED=1 || true
 if python3 - "$CONFIG_PATH" "$INSPECT_FILE" <<'PY'

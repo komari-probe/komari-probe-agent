@@ -3,7 +3,7 @@
 set -u -o pipefail
 
 COMPOSE_FILE=""; SERVICE=""; TARGET_IMAGE=""; PROJECT=""; CONFIG_PATH="/app/auto-discovery.json"; CONFIG_HOST_PATH=""
-BACKUP_ROOT="/var/backups/komari-agent-docker-migration"; OVERRIDE_FILE=""; CLEANUP_ID=""; DRY_RUN=0
+BACKUP_ROOT="/var/backups/sonar-agent-docker-migration"; OVERRIDE_FILE=""; CLEANUP_ID=""; DRY_RUN=0
 BACKUP_DIR=""; OVERRIDE_CREATED=0; CONFIG_CAPTURED=0; CONFIG_WAS_MOUNTED=0; CONFIG_BACKUP=""
 
 usage() { cat <<'EOF'
@@ -16,20 +16,20 @@ file, recreates only that Agent service, and rolls back if it cannot run.
 Required:
   --compose-file FILE       Existing Docker Compose file
   --service NAME            Agent service in that Compose project
-  --target-image IMAGE      New Komari Probe Agent image (prefer a digest)
+  --target-image IMAGE      New Sonar Agent image (prefer a digest)
 
 Options:
   --project NAME            Compose project name, if not inferred
   --config-path PATH        Credential file in container; default: /app/auto-discovery.json
   --config-host-path PATH   Where a previously container-local credential becomes persistent
-  --backup-root PATH        Default: /var/backups/komari-agent-docker-migration
+  --backup-root PATH        Default: /var/backups/sonar-agent-docker-migration
   --override-file FILE      Persistent image/config override beside Compose file by default
   --dry-run                 Validate and print the plan only
   --cleanup-backup ID       Explicitly delete one completed backup
 EOF
 }
-log() { printf '[komari-agent-docker] %s\n' "$*"; }
-die() { printf '[komari-agent-docker] ERROR: %s\n' "$*" >&2; exit 1; }
+log() { printf '[sonar-agent-docker] %s\n' "$*"; }
+die() { printf '[sonar-agent-docker] ERROR: %s\n' "$*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"; }
 compose() { if [ -n "$PROJECT" ]; then docker compose -p "$PROJECT" -f "$COMPOSE_FILE" "$@"; else docker compose -f "$COMPOSE_FILE" "$@"; fi; }
 compose_target() { if [ -n "$PROJECT" ]; then docker compose -p "$PROJECT" -f "$COMPOSE_FILE" -f "$OVERRIDE_FILE" "$@"; else docker compose -f "$COMPOSE_FILE" -f "$OVERRIDE_FILE" "$@"; fi; }
@@ -45,7 +45,7 @@ while [ "$#" -gt 0 ]; do case "$1" in --compose-file) COMPOSE_FILE=$2; shift;; -
 [ -n "$CLEANUP_ID" ] && { cleanup_backup; exit 0; }
 [ -n "$COMPOSE_FILE" ] && [ -f "$COMPOSE_FILE" ] || die "--compose-file must name an existing file."; [ -n "$SERVICE" ] || die "--service is required."; [ -n "$TARGET_IMAGE" ] || die "--target-image is required."
 compose config --services | grep -Fx "$SERVICE" >/dev/null || die "Service not found in Compose file: $SERVICE"; CID=$(compose ps -q "$SERVICE"); [ -n "$CID" ] || die "Service is not running: $SERVICE"
-BACKUP_ID=$(date -u +%Y%m%dT%H%M%SZ); BACKUP_DIR="$BACKUP_ROOT/$BACKUP_ID"; OVERRIDE_FILE=${OVERRIDE_FILE:-"$(dirname "$COMPOSE_FILE")/.komari-probe-${SERVICE}.override.yml"}; CONFIG_HOST_PATH=${CONFIG_HOST_PATH:-"$(dirname "$COMPOSE_FILE")/.komari-probe-agent-data/$SERVICE/$(basename "$CONFIG_PATH")"}
+BACKUP_ID=$(date -u +%Y%m%dT%H%M%SZ); BACKUP_DIR="$BACKUP_ROOT/$BACKUP_ID"; OVERRIDE_FILE=${OVERRIDE_FILE:-"$(dirname "$COMPOSE_FILE")/.sonar-probe-${SERVICE}.override.yml"}; CONFIG_HOST_PATH=${CONFIG_HOST_PATH:-"$(dirname "$COMPOSE_FILE")/.sonar-probe-agent-data/$SERVICE/$(basename "$CONFIG_PATH")"}
 [ ! -e "$OVERRIDE_FILE" ] || die "Override already exists: $OVERRIDE_FILE. Use that Compose configuration or choose --override-file."
 config_is_mounted "$CID" "$CONFIG_PATH" && CONFIG_WAS_MOUNTED=1 || true
 log "Plan: service=$SERVICE; old-image=$(docker inspect --format '{{.Config.Image}}' "$CID"); target=$TARGET_IMAGE; config=$CONFIG_PATH; backup=$BACKUP_DIR"

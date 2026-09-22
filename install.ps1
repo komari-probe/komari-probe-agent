@@ -1,4 +1,4 @@
-# Windows PowerShell installation script for Komari Probe Agent
+# Windows PowerShell installation script for Sonar Agent
 
 # Logging functions with colors
 function Log-Info { param([string]$Message) Write-Host "$Message"    -ForegroundColor Cyan }
@@ -9,10 +9,10 @@ function Log-Step { param([string]$Message) Write-Host "$Message"    -Foreground
 function Log-Config { param([string]$Message) Write-Host "- $Message"    -ForegroundColor White }
 
 # Default parameters
-$InstallDir = Join-Path $Env:ProgramFiles "Komari"
-$ServiceName = "komari-agent"
+$InstallDir = Join-Path $Env:ProgramFiles "Sonar"
+$ServiceName = "sonar-agent"
 $GitHubProxy = ""
-$KomariArgs = @()
+$SonarArgs = @()
 $InstallVersion = ""
 
 function Get-InstallOptionValue {
@@ -50,7 +50,7 @@ for ($i = 0; $i -lt $args.Count; $i++) {
         "--install-service-name" { $ServiceName = Get-InstallOptionValue $args[$i] $i $args; $i++; continue }
         "--install-ghproxy" { $GitHubProxy = Get-InstallOptionValue $args[$i] $i $args; $i++; continue }
         "--install-version" { $InstallVersion = Get-InstallOptionValue $args[$i] $i $args; $i++; continue }
-        Default { $KomariArgs += $args[$i] }
+        Default { $SonarArgs += $args[$i] }
     }
 }
 
@@ -200,7 +200,7 @@ Log-Step "Installation configuration:"
 Log-Config "Service name: $ServiceName"
 Log-Config "Install directory: $InstallDir"
 Log-Config "GitHub proxy: $ProxyDisplay"
-Log-Config "Agent arguments: $($KomariArgs -join ' ')"
+Log-Config "Agent arguments: $($SonarArgs -join ' ')"
 if ($InstallVersion -ne "") {
     Log-Config "Specified agent version: $InstallVersion"
 } else {
@@ -208,8 +208,8 @@ if ($InstallVersion -ne "") {
 }
 
 # Paths
-$BinaryName = "komari-agent-windows-$arch.exe"
-$AgentPath = Join-Path $InstallDir "komari-agent.exe"
+$BinaryName = "sonar-agent-windows-$arch.exe"
+$AgentPath = Join-Path $InstallDir "sonar-agent.exe"
 
 # Uninstall previous service and binary
 function Uninstall-Previous {
@@ -248,7 +248,7 @@ function Uninstall-Previous {
 function Get-LatestSnapshotVersion {
     param([Parameter(Mandatory = $true)][string]$AssetName)
 
-    $ApiUrl = "https://api.github.com/repos/komari-probe/komari-probe-agent/releases?per_page=100"
+    $ApiUrl = "https://api.github.com/repos/sonar-probe/sonar-agent/releases?per_page=100"
     $ApiUrls = @($ApiUrl)
     if ($GitHubProxy -ne "") {
         $ApiUrls = @("$GitHubProxy/$ApiUrl", $ApiUrl)
@@ -306,7 +306,7 @@ if ($InstallVersion -ne "") {
     }
 }
 else {
-    $ApiUrl = "https://api.github.com/repos/komari-probe/komari-probe-agent/releases/latest"
+    $ApiUrl = "https://api.github.com/repos/sonar-probe/sonar-agent/releases/latest"
     try {
         Log-Step "Fetching latest release version from GitHub API..."
         $release = Invoke-RestMethod -Uri $ApiUrl -UseBasicParsing
@@ -318,14 +318,14 @@ else {
         exit 1
     }
 }
-Log-Success "Installing Komari Probe Agent version: $versionToInstall"
+Log-Success "Installing Sonar Agent version: $versionToInstall"
 
 # Construct download URL
-$BinaryName = "komari-agent-windows-$arch.exe"
-$DownloadUrl = if ($GitHubProxy) { "$GitHubProxy/https://github.com/komari-probe/komari-probe-agent/releases/download/$versionToInstall/$BinaryName" } else { "https://github.com/komari-probe/komari-probe-agent/releases/download/$versionToInstall/$BinaryName" }
-$ChecksumUrl = "https://github.com/komari-probe/komari-probe-agent/releases/download/$versionToInstall/checksums.txt"
-$TemporaryAgentPath = Join-Path $env:TEMP "komari-agent-$([guid]::NewGuid().ToString('N')).download"
-$TemporaryChecksumPath = Join-Path $env:TEMP "komari-agent-$([guid]::NewGuid().ToString('N')).checksums"
+$BinaryName = "sonar-agent-windows-$arch.exe"
+$DownloadUrl = if ($GitHubProxy) { "$GitHubProxy/https://github.com/sonar-probe/sonar-agent/releases/download/$versionToInstall/$BinaryName" } else { "https://github.com/sonar-probe/sonar-agent/releases/download/$versionToInstall/$BinaryName" }
+$ChecksumUrl = "https://github.com/sonar-probe/sonar-agent/releases/download/$versionToInstall/checksums.txt"
+$TemporaryAgentPath = Join-Path $env:TEMP "sonar-agent-$([guid]::NewGuid().ToString('N')).download"
+$TemporaryChecksumPath = Join-Path $env:TEMP "sonar-agent-$([guid]::NewGuid().ToString('N')).checksums"
 $agentVerified = $false
 
 # Download and verify before changing an existing installation. The binary may
@@ -372,10 +372,10 @@ Log-Success "Downloaded, verified, and saved to $AgentPath"
 
 # Register and start service
 Log-Step "Configuring Windows service with nssm..."
-$argString = $KomariArgs -join ' '
+$argString = $SonarArgs -join ' '
 Invoke-Nssm "install service '$ServiceName'" @("install", $ServiceName, $AgentPath, $argString)
 # Set display name and startup type using nssm
-Invoke-Nssm "set service display name" @("set", $ServiceName, "DisplayName", "Komari Probe Agent Service")
+Invoke-Nssm "set service display name" @("set", $ServiceName, "DisplayName", "Sonar Agent Service")
 Invoke-Nssm "set service startup type" @("set", $ServiceName, "Start", "SERVICE_AUTO_START")
 Invoke-Nssm "set service exit behavior" @("set", $ServiceName, "AppExit", "Default", "Restart")
 Invoke-Nssm "set service restart delay" @("set", $ServiceName, "AppRestartDelay", "5000")
@@ -383,6 +383,6 @@ Invoke-Nssm "set service restart delay" @("set", $ServiceName, "AppRestartDelay"
 Invoke-Nssm "start service '$ServiceName'" @("start", $ServiceName)
 Log-Success "Service $ServiceName installed and started using nssm."
 
-Log-Success "Komari Probe Agent installation completed!"
+Log-Success "Sonar Agent installation completed!"
 Log-Config "Service name: $ServiceName"
 Log-Config "Arguments: $argString"

@@ -39,8 +39,8 @@ log_config() {
 EUID=${EUID:-$(id -u)}
 
 # Default values
-service_name="komari-agent"
-target_dir="/opt/komari"
+service_name="sonar-agent"
+target_dir="/opt/sonar-agent"
 github_proxy=""
 install_version="" # New parameter for specifying version
 install_dir_specified=false
@@ -53,10 +53,10 @@ os_type=$(uname -s)
 case $os_type in
     Darwin)
         os_name="darwin"
-        target_dir="/usr/local/komari"  # Use /usr/local on macOS
+        target_dir="/usr/local/sonar-agent"  # Use /usr/local on macOS
         # Check if we can write to /usr/local, fallback to user directory
         if [ ! -w "/usr/local" ] && [ "$EUID" -ne 0 ]; then
-            target_dir="$HOME/.komari"
+            target_dir="$HOME/.sonar-agent"
             log_info "No write permission to /usr/local, using user directory: $target_dir"
         fi
         ;;
@@ -68,7 +68,7 @@ case $os_type in
         ;;
     MINGW*|MSYS*|CYGWIN*)
         os_name="windows"
-        target_dir="/c/komari"  # Use C:\komari on Windows
+        target_dir="/c/sonar-agent"  # Use C:\komari on Windows
         ;;
     *)
         log_error "Unsupported operating system: $os_type"
@@ -77,7 +77,7 @@ case $os_type in
 esac
 
 # Parse install-specific arguments
-komari_args=""
+sonar_args=""
 require_install_option_value() {
     if [ "$#" -lt 2 ] || [ -z "$2" ]; then
         log_error "Option $1 requires a value."
@@ -118,26 +118,26 @@ while [ $# -gt 0 ]; do
             shift
             ;;
         *)
-            # Non-install arguments go to komari_args
-            komari_args="$komari_args $1"
+            # Non-install arguments go to sonar_args
+            sonar_args="$sonar_args $1"
             shift
             ;;
     esac
 done
 
-# Remove leading space from komari_args if present
-komari_args="${komari_args# }"
+# Remove leading space from sonar_args if present
+sonar_args="${sonar_args# }"
 
 # A direct, unprivileged installation belongs entirely to the invoking user.
 if [ "$EUID" -ne 0 ] && [ "$install_dir_specified" = false ]; then
     case "$os_name" in
         linux|freebsd)
-            target_dir="${XDG_DATA_HOME:-$HOME/.local/share}/komari"
+            target_dir="${XDG_DATA_HOME:-$HOME/.local/share}/sonar-agent"
             ;;
     esac
 fi
 
-komari_agent_path="${target_dir}/agent"
+sonar_agent_path="${target_dir}/agent"
 
 # User services are the only service type a non-root Linux installation can manage.
 if [ "$EUID" -ne 0 ] && [ "$os_name" = "linux" ]; then
@@ -151,7 +151,7 @@ if [ "$EUID" -ne 0 ] && [ "$os_name" = "linux" ]; then
 fi
 
 printf '%b\n' "${WHITE}===========================================${NC}"
-printf '%b\n' "${WHITE} Komari Probe Agent Installation Script  ${NC}"
+printf '%b\n' "${WHITE} Sonar Agent Installation Script  ${NC}"
 printf '%b\n' "${WHITE}===========================================${NC}"
 printf '\n'
 log_config "Installation configuration:"
@@ -159,7 +159,7 @@ log_config "  Service name: ${GREEN}$service_name${NC}"
 log_config "  Service user: ${GREEN}$service_user${NC}"
 log_config "  Install directory: ${GREEN}$target_dir${NC}"
 log_config "  GitHub proxy: ${GREEN}${github_proxy:-(direct)}${NC}"
-log_config "  Binary arguments: ${GREEN}$komari_args${NC}"
+log_config "  Binary arguments: ${GREEN}$sonar_args${NC}"
 if [ -n "$install_version" ]; then
     log_config "  Specified agent version: ${GREEN}$install_version${NC}"
 else
@@ -171,22 +171,26 @@ echo ""
 uninstall_previous() {
     log_step "Checking for previous installation..."
     
-    # Stop and disable service if it exists
-    if [ "$user_service" = true ]; then
-        if systemctl --user list-unit-files | grep -q "${service_name}.service"; then
-            log_info "Stopping and disabling existing systemd user service..."
-            systemctl --user stop "${service_name}.service" || true
-            systemctl --user disable "${service_name}.service" || true
-            rm -f "${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/${service_name}.service"
-            systemctl --user daemon-reload
+    # Stop and disable service if it exists (including legacy komari-agent)
+    for svc in "$service_name" "komari-agent"; do
+        if [ "$user_service" = true ]; then
+            if systemctl --user list-unit-files 2>/dev/null | grep -q "${svc}.service"; then
+                log_info "Stopping and disabling existing systemd user service ($svc)..."
+                systemctl --user stop "${svc}.service" || true
+                systemctl --user disable "${svc}.service" || true
+                rm -f "${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/${svc}.service"
+                systemctl --user daemon-reload
+            fi
+        elif command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files 2>/dev/null | grep -q "${svc}.service"; then
+            log_info "Stopping and disabling existing systemd service ($svc)..."
+            systemctl stop "${svc}.service" || true
+            systemctl disable "${svc}.service" || true
+            rm -f "/etc/systemd/system/${svc}.service"
+            systemctl daemon-reload
         fi
-    elif command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files | grep -q "${service_name}.service"; then
-        log_info "Stopping and disabling existing systemd service..."
-        systemctl stop ${service_name}.service
-        systemctl disable ${service_name}.service
-        rm -f "/etc/systemd/system/${service_name}.service"
-        systemctl daemon-reload
-    elif command -v rc-service >/dev/null 2>&1 && [ -f "/etc/init.d/${service_name}" ]; then
+    done
+
+    if command -v rc-service >/dev/null 2>&1 && [ -f "/etc/init.d/${service_name}" ]; then
         log_info "Stopping and disabling existing OpenRC service..."
         rc-service ${service_name} stop
         rc-update del ${service_name} default
@@ -202,8 +206,8 @@ uninstall_previous() {
         rm -f "/etc/init/${service_name}.conf"
     elif [ "$os_name" = "darwin" ] && command -v launchctl >/dev/null 2>&1; then
         # macOS launchd service - check both system and user locations
-        system_plist="/Library/LaunchDaemons/com.komari.${service_name}.plist"
-        user_plist="$HOME/Library/LaunchAgents/com.komari.${service_name}.plist"
+        system_plist="/Library/LaunchDaemons/com.sonar.${service_name}.plist"
+        user_plist="$HOME/Library/LaunchAgents/com.sonar.${service_name}.plist"
         
         if [ -f "$system_plist" ]; then
             log_info "Stopping and removing existing system launchd service..."
@@ -219,9 +223,9 @@ uninstall_previous() {
     fi
     
     # Remove old binary if it exists
-    if [ -f "$komari_agent_path" ]; then
+    if [ -f "$sonar_agent_path" ]; then
         log_info "Removing old binary..."
-        rm -f "$komari_agent_path"
+        rm -f "$sonar_agent_path"
     fi
 }
 
@@ -327,10 +331,10 @@ case $arch in
 esac
 log_info "Detected OS: ${GREEN}$os_name${NC}, Architecture: ${GREEN}$arch${NC}"
 
-file_name="komari-agent-${os_name}-${arch}"
+file_name="sonar-agent-${os_name}-${arch}"
 
 resolve_snapshot_version() {
-    snapshot_api_url="https://api.github.com/repos/komari-probe/komari-probe-agent/releases?per_page=100"
+    snapshot_api_url="https://api.github.com/repos/sonar-probe/sonar-agent/releases?per_page=100"
     if [ -n "$github_proxy" ]; then
         snapshot_api_urls="${github_proxy}/${snapshot_api_url} ${snapshot_api_url}"
     else
@@ -340,7 +344,7 @@ resolve_snapshot_version() {
     for api_url in $snapshot_api_urls; do
         if ! releases_json=$(curl -fsSL --connect-timeout 15 \
             -H "Accept: application/vnd.github+json" \
-            -H "User-Agent: komari-agent-installer" \
+            -H "User-Agent: sonar-agent-installer" \
             "$api_url"); then
             releases_json=""
         fi
@@ -391,16 +395,16 @@ fi
 
 if [ -n "$github_proxy" ]; then
     # Use proxy for GitHub releases
-    download_url="${github_proxy}/https://github.com/komari-probe/komari-probe-agent/releases/${download_path}/${file_name}"
+    download_url="${github_proxy}/https://github.com/sonar-probe/sonar-agent/releases/${download_path}/${file_name}"
 else
     # Direct access to GitHub releases
-    download_url="https://github.com/komari-probe/komari-probe-agent/releases/${download_path}/${file_name}"
+    download_url="https://github.com/sonar-probe/sonar-agent/releases/${download_path}/${file_name}"
 fi
 
 # Always obtain the checksum manifest directly from GitHub.  Mirrors may be
 # useful for downloading a large binary, but must not be trusted to provide
 # its expected hash.
-checksum_url="https://github.com/komari-probe/komari-probe-agent/releases/${download_path}/checksums.txt"
+checksum_url="https://github.com/sonar-probe/sonar-agent/releases/${download_path}/checksums.txt"
 
 verify_sha256() {
     expected_checksum=$1
@@ -482,14 +486,14 @@ log_success "SHA-256 checksum verified."
 
 # Do not disrupt a working installation until the replacement is verified.
 uninstall_previous
-mv "$downloaded_path" "$komari_agent_path"
+mv "$downloaded_path" "$sonar_agent_path"
 
 # Set executable permissions
-chmod +x "$komari_agent_path"
+chmod +x "$sonar_agent_path"
 if [ "$EUID" -eq 0 ] && [ "$service_user" != "root" ]; then
-    chown "$service_user" "$komari_agent_path"
+    chown "$service_user" "$sonar_agent_path"
 fi
-log_success "Komari Probe Agent installed to ${GREEN}$komari_agent_path${NC}"
+log_success "Sonar Agent installed to ${GREEN}$sonar_agent_path${NC}"
 
 # Detect init system and configure service
 log_step "Configuring system service..."
@@ -595,12 +599,12 @@ if [ "$init_system" = "nixos" ]; then
     log_info "Please add the following to your NixOS configuration:"
     printf '\n'
     printf '%b\n' "${CYAN}systemd.services.${service_name} = {${NC}"
-    printf '%b\n' "${CYAN}  description = \"Komari Probe Agent Service\";${NC}"
+    printf '%b\n' "${CYAN}  description = \"Sonar Agent Service\";${NC}"
     printf '%b\n' "${CYAN}  after = [ \"network.target\" ];${NC}"
     printf '%b\n' "${CYAN}  wantedBy = [ \"multi-user.target\" ];${NC}"
     printf '%b\n' "${CYAN}  serviceConfig = {${NC}"
     printf '%b\n' "${CYAN}    Type = \"simple\";${NC}"
-    printf '%b\n' "${CYAN}    ExecStart = \"${komari_agent_path} ${komari_args}\";${NC}"
+    printf '%b\n' "${CYAN}    ExecStart = \"${sonar_agent_path} ${sonar_args}\";${NC}"
     printf '%b\n' "${CYAN}    WorkingDirectory = \"${target_dir}\";${NC}"
     printf '%b\n' "${CYAN}    Restart = \"always\";${NC}"
     printf '%b\n' "${CYAN}    User = \"${service_user}\";${NC}"
@@ -616,10 +620,10 @@ elif [ "$init_system" = "openrc" ]; then
     cat > "$service_file" << EOF
 #!/sbin/openrc-run
 
-name="Komari Probe Agent Service"
+name="Sonar Agent Service"
 description="Komari Probe monitoring agent"
-command="${komari_agent_path}"
-command_args="${komari_args}"
+command="${sonar_agent_path}"
+command_args="${sonar_args}"
 command_user="${service_user}"
 directory="${target_dir}"
 pidfile="/run/${service_name}.pid"
@@ -644,12 +648,12 @@ elif [ "$init_system" = "systemd-user" ]; then
     mkdir -p "$service_dir"
     cat > "$service_file" << EOF
 [Unit]
-Description=Komari Probe Agent Service
+Description=Sonar Agent Service
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=${komari_agent_path} ${komari_args}
+ExecStart=${sonar_agent_path} ${sonar_args}
 WorkingDirectory=${target_dir}
 Restart=always
 
@@ -665,12 +669,12 @@ elif [ "$init_system" = "systemd" ]; then
     service_file="/etc/systemd/system/${service_name}.service"
     cat > "$service_file" << EOF
 [Unit]
-Description=Komari Probe Agent Service
+Description=Sonar Agent Service
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=${komari_agent_path} ${komari_args}
+ExecStart=${sonar_agent_path} ${sonar_args}
 WorkingDirectory=${target_dir}
 Restart=always
 User=${service_user}
@@ -696,8 +700,8 @@ STOP=10
 
 USE_PROCD=1
 
-PROG="${komari_agent_path}"
-ARGS="${komari_args}"
+PROG="${sonar_agent_path}"
+ARGS="${sonar_args}"
 
 start_service() {
     procd_open_instance
@@ -741,7 +745,7 @@ elif [ "$init_system" = "launchd" ]; then
     if [ "$is_user_install" = true ]; then
         # User-level service (LaunchAgent)
         plist_dir="$HOME/Library/LaunchAgents"
-        plist_file="$plist_dir/com.komari.${service_name}.plist"
+        plist_file="$plist_dir/com.sonar.${service_name}.plist"
         log_info "Installing as user-level service (LaunchAgent)"
         mkdir -p "$plist_dir"
         service_user="$(whoami)"
@@ -749,7 +753,7 @@ elif [ "$init_system" = "launchd" ]; then
     else
         # System-level service (LaunchDaemon)
         plist_dir="/Library/LaunchDaemons"
-        plist_file="$plist_dir/com.komari.${service_name}.plist"
+        plist_file="$plist_dir/com.sonar.${service_name}.plist"
         log_info "Installing as system-level service (LaunchDaemon)"
         log_dir="/var/log"
     fi
@@ -761,15 +765,15 @@ elif [ "$init_system" = "launchd" ]; then
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.komari.${service_name}</string>
+    <string>com.sonar.${service_name}</string>
     <key>ProgramArguments</key>
     <array>
-        <string>${komari_agent_path}</string>
+        <string>${sonar_agent_path}</string>
 EOF
     
     # Add program arguments if provided
-    if [ -n "$komari_args" ]; then
-        echo "$komari_args" | xargs -n1 printf "        <string>%s</string>\n" >> "$plist_file"
+    if [ -n "$sonar_args" ]; then
+        echo "$sonar_args" | xargs -n1 printf "        <string>%s</string>\n" >> "$plist_file"
     fi
     
     cat >> "$plist_file" << EOF
@@ -813,8 +817,8 @@ elif [ "$init_system" = "upstart" ]; then
     log_info "Using upstart for service management"
     service_file="/etc/init/${service_name}.conf"
     cat > "$service_file" << EOF
-# Komari Probe Agent
-description "Komari Probe Agent Service"
+# Sonar Agent
+description "Sonar Agent Service"
 
 chdir ${target_dir}
 start on filesystem or runlevel [2345]
@@ -829,12 +833,12 @@ console none
 setuid ${service_user}
 
 pre-start script
-    test -x ${komari_agent_path} || { stop; exit 0; }
+    test -x ${sonar_agent_path} || { stop; exit 0; }
 end script
 
 # Start
 script
-    exec ${komari_agent_path} ${komari_args}
+    exec ${sonar_agent_path} ${sonar_args}
 end script
 EOF
     # enable Upstart unit
@@ -850,12 +854,12 @@ fi
 printf '\n'
 printf '%b\n' "${WHITE}===========================================${NC}"
 if [ -f /etc/NIXOS ]; then
-    log_success "Komari Probe Agent binary installed!"
+    log_success "Sonar Agent binary installed!"
     log_warning "NixOS requires declarative service configuration."
     log_info "Please add the service configuration to your NixOS config and rebuild."
 else
-    log_success "Komari Probe Agent installation completed!"
+    log_success "Sonar Agent installation completed!"
 fi
 log_config "Service: ${GREEN}$service_name${NC}"
-log_config "Arguments: ${GREEN}$komari_args${NC}"
+log_config "Arguments: ${GREEN}$sonar_args${NC}"
 printf '%b\n' "${WHITE}===========================================${NC}"
