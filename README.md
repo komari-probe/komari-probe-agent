@@ -1,38 +1,38 @@
-# Komari Probe Agent
+# Sonar Agent
 
-Komari Probe Agent 是部署在被监控主机上的轻量级探针组件，负责采集主机指标、执行网络探测并向 Komari Probe 中心控制端上报数据。
+Sonar Agent 是部署在被监控主机上的轻量级探针组件，负责采集主机指标、执行网络探测并向 Sonar 中心控制端上报数据。
 
 [English](README.en.md) | 中文
 
-> 💡 **提示**：如需部署中心监控控制面板，请参阅 [komari-probe 服务端仓库](https://github.com/komari-probe/komari-probe)。
+> 💡 **提示**：如需部署中心监控控制面板，请参阅 [komari-probe 服务端仓库](https://github.com/sonar-probe/sonar)。
 
 ---
 
 ## 快速安装 (Installation)
 
-> 💡 **最简接入方式（推荐）**：登录 Komari Probe 服务端管理后台（`/admin`），点击 **【节点管理】** $\rightarrow$ **【添加节点】**，在弹出的窗口中**直接复制系统自动生成的一键安装命令**并在目标服务器终端粘贴运行即可！系统已自动拼装好当前服务端通信地址与专属 Token，无需手动替换任何参数。
+> 💡 **最简接入方式（推荐）**：登录 Sonar 服务端管理后台（`/admin`），点击 **【节点管理】** $\rightarrow$ **【添加节点】**，在弹出的窗口中**直接复制系统自动生成的一键安装命令**并在目标服务器终端粘贴运行即可！系统已自动拼装好当前服务端通信地址与专属 Token，无需手动替换任何参数。
 
 若需在 CI/CD 或自动化部署脚本中静默安装，可参考以下标准命令：
 
 ### 1. 宿主机一键安装
-适用于 Linux / macOS。默认安装至 `/opt/komari`，并注册为系统服务 `komari-agent.service`。
+适用于 Linux / macOS。默认安装至 `/opt/komari`，并注册为系统服务 `sonar-agent.service`。
 
 - **正式稳定版（Stable）**：
   ```bash
-  curl -fsSL https://raw.githubusercontent.com/komari-probe/komari-probe-agent/main/install.sh | sudo bash -s -- \
+  curl -fsSL https://raw.githubusercontent.com/sonar-probe/sonar-agent/main/install.sh | sudo bash -s -- \
     -e "http://<服务端IP或域名>:25774" \
     -t "<你的AGENT_TOKEN>"
   ```
 - **预览体验版（Pre-release / Beta，如 `v1.0.0-beta.1`）**：
   ```bash
-  curl -fsSL https://raw.githubusercontent.com/komari-probe/komari-probe-agent/main/install.sh | sudo bash -s -- \
+  curl -fsSL https://raw.githubusercontent.com/sonar-probe/sonar-agent/main/install.sh | sudo bash -s -- \
     -e "http://<服务端IP或域名>:25774" \
     -t "<你的AGENT_TOKEN>" \
     -v "v1.0.0-beta.1"
   ```
 - **开发快照版（Snapshot）**：
   ```bash
-  curl -fsSL https://raw.githubusercontent.com/komari-probe/komari-probe-agent/main/install.sh | sudo bash -s -- \
+  curl -fsSL https://raw.githubusercontent.com/sonar-probe/sonar-agent/main/install.sh | sudo bash -s -- \
     -e "http://<服务端IP或域名>:25774" \
     -t "<你的AGENT_TOKEN>" \
     --snapshot
@@ -45,10 +45,10 @@ Komari Probe Agent 是部署在被监控主机上的轻量级探针组件，负�
 - **正式稳定版**：
   ```bash
   docker run -d \
-    --name komari-agent \
+    --name sonar-agent \
     --restart unless-stopped \
     --net=host \
-    ghcr.io/komari-probe/komari-probe-agent:latest \
+    ghcr.io/sonar-probe/sonar-agent:latest \
     -e "http://<服务端IP或域名>:25774" -t "<你的AGENT_TOKEN>"
   ```
 - **预览体验版**：将镜像标签改为 `:v1.0.0-beta.1`。
@@ -63,7 +63,7 @@ Komari Probe Agent 是部署在被监控主机上的轻量级探针组件，负�
 ### 1. 宿主机方式迁移：
 ```bash
 # 下载迁移脚本
-curl -fsSL https://raw.githubusercontent.com/komari-probe/komari-probe-agent/main/scripts/migrate-agent-host.sh -o migrate-agent-host.sh
+curl -fsSL https://raw.githubusercontent.com/sonar-probe/sonar-agent/main/scripts/migrate-agent-host.sh -o migrate-agent-host.sh
 
 # 执行迁移（预览期指定 --tag v1.0.0-beta.1）
 sudo bash migrate-agent-host.sh --tag v1.0.0-beta.1
@@ -72,35 +72,35 @@ sudo bash migrate-agent-host.sh --tag v1.0.0-beta.1
 ### 2. Docker 方式迁移：
 ```bash
 # 下载 Docker 迁移脚本
-curl -fsSL https://raw.githubusercontent.com/komari-probe/komari-probe-agent/main/scripts/migrate-agent-docker.sh -o migrate-agent-docker.sh
+curl -fsSL https://raw.githubusercontent.com/sonar-probe/sonar-agent/main/scripts/migrate-agent-docker.sh -o migrate-agent-docker.sh
 
 # 执行迁移
 sudo bash migrate-agent-docker.sh \
-  --container komari-agent \
-  --target-image ghcr.io/komari-probe/komari-probe-agent:v1.0.0-beta.1
+  --container sonar-agent \
+  --target-image ghcr.io/sonar-probe/sonar-agent:v1.0.0-beta.1
 ```
 
 ---
 
 ## 配置方式与参数字典
 
-Komari Probe Agent 参数可以通过命令行参数、环境变量或 JSON 配置文件传入。正式命令为 `komari-agent`。
+Sonar Agent 参数可以通过命令行参数、环境变量或 JSON 配置文件传入。正式命令为 `sonar-agent`。
 
 ### 常用启动方式
 
 1. **直接传参启动**：
    ```bash
-   ./komari-agent --endpoint "https://example.com" --token "your-token"
+   ./sonar-agent --endpoint "https://example.com" --token "your-token"
    ```
 2. **使用环境变量**：
    ```bash
    export AGENT_ENDPOINT="https://example.com"
    export AGENT_TOKEN="your-token"
-   ./komari-agent
+   ./sonar-agent
    ```
 3. **使用 JSON 配置文件**：
    ```bash
-   ./komari-agent --config ./config.json
+   ./sonar-agent --config ./config.json
    ```
 
 `config.json` 示例：
@@ -137,7 +137,7 @@ Komari Probe Agent 参数可以通过命令行参数、环境变量或 JSON 配�
 
 查看完整参数说明：
 ```bash
-./komari-agent --help
+./sonar-agent --help
 ```
 
 ---
@@ -146,6 +146,6 @@ Komari Probe Agent 参数可以通过命令行参数、环境变量或 JSON 配�
 
 在已安装 Agent 的主机上运行：
 ```bash
-komari-agent update
+sonar-agent update
 ```
 该命令会检查官方 GitHub Release，按当前系统和架构下载二进制，并比对 Release 中的 `checksums.txt` 校验 SHA-256，验证无误后替换文件并提示重启服务。
