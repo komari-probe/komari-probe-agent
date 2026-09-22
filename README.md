@@ -4,7 +4,7 @@ Sonar Agent 是部署在被监控主机上的轻量级探针组件，负责采�
 
 [English](README.en.md) | 中文
 
-> 💡 **提示**：如需部署中心监控控制面板，请参阅 [komari-probe 服务端仓库](https://github.com/sonar-probe/sonar)。
+> 💡 **提示**：如需部署中心监控控制面板，请参阅 [Sonar 服务端仓库](https://github.com/sonar-probe/sonar)。
 
 ---
 

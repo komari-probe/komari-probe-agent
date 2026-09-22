@@ -4,7 +4,7 @@ Sonar Agent is a lightweight monitoring component deployed on client servers to 
 
 [English](README.en.md) | [中文](README.md)
 
-> 💡 **Tip**: To deploy the central server and web dashboard, see the [komari-probe server repository](https://github.com/sonar-probe/sonar).
+> 💡 **Tip**: To deploy the central server and web dashboard, see the [Sonar server repository](https://github.com/sonar-probe/sonar).
 
 ---
 
