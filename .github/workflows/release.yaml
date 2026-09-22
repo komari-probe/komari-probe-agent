@@ -19,20 +19,20 @@ concurrency:
 
 jobs:
   prepare:
-    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.release.prerelease }}
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.release.outputs.tag }}
     steps:
-      - name: Validate stable release
+      - name: Validate release
         id: release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.event.release.tag_name || inputs.tag }}
         run: |
           test -n "${TAG}"
-          if [ "$(gh release view "${TAG}" --repo "${{ github.repository }}" --json isPrerelease --jq .isPrerelease)" = "true" ]; then
-            echo "Refusing to publish prerelease ${TAG} as a stable release."
+          is_prerelease="$(gh release view "${TAG}" --repo "${{ github.repository }}" --json isPrerelease --jq .isPrerelease)"
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ "${is_prerelease}" = "true" ]; then
+            echo "workflow_dispatch is reserved for an existing stable release; publish prereleases through the release event."
             exit 1
           fi
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
@@ -151,7 +151,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: |
             ghcr.io/${{ github.repository }}:${{ needs.prepare.outputs.tag }}
-            ghcr.io/${{ github.repository }}:latest
+            ${{ !github.event.release.prerelease && format('ghcr.io/{0}:latest', github.repository) || '' }}
 
       - name: Attest release Docker image
         uses: actions/attest@v4
