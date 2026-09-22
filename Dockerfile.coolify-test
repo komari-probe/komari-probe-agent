@@ -1,0 +1,29 @@
+# 仅供内部测试环境使用（Coolify 从源码构建），不用于正式发布。
+# 正式发布走 .github/workflows 里的交叉编译 + goreleaser 流程，不要改那一套。
+#
+# agent 没有 server 那种"要先拉前端仓库编译打包"的额外步骤，也不需要 CGO，
+# 一个多阶段构建（编译 + 打包运行镜像）就够了。
+
+# ---- 阶段一：编译 ----
+FROM golang:1.27-alpine AS go-build
+WORKDIR /src
+COPY . .
+ENV CGO_ENABLED=0
+ARG VERSION=test-local
+RUN go build -trimpath \
+    -ldflags="-X github.com/komari-probe/komari-probe-agent/internal/version.CurrentVersion=${VERSION}" \
+    -o /out/komari-agent ./cmd/komari-probe-agent
+
+# ---- 阶段二：运行镜像 ----
+FROM alpine:3.21
+
+WORKDIR /app
+
+RUN apk add --no-cache ca-certificates curl tzdata
+
+COPY --from=go-build /out/komari-agent /app/komari-agent
+
+RUN touch /.komari-agent-container
+
+ENTRYPOINT ["/app/komari-agent"]
+CMD ["--help"]
