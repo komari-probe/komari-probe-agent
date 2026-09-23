@@ -45,8 +45,9 @@ func TestTCPChecksumVerifiesToZero(t *testing.T) {
 	dstIP := net.ParseIP("192.168.1.20").To4()
 	seg := buildSYNSegment(srcIP, dstIP, 55555, 443, 42, bigPacketTotalSize)
 
-	// Internet 校验和的性质：把已经算好校验和的报文（连同伪首部）再整体
-	// 求一次校验和，结果应该是全 1（补码运算下等价于 0xffff）。
+	// Internet 校验和的性质（RFC 1071 §4.1）：把已经算好校验和的报文（连同
+	// 伪首部）再整体求一次校验和，S + ^S 在补码运算下恒等于 0xffff，取反后
+	// 结果应该是全 0，不是全 1——这是接收端验证校验和的标准做法。
 	pseudo := make([]byte, 12+len(seg))
 	copy(pseudo[0:4], srcIP)
 	copy(pseudo[4:8], dstIP)
@@ -55,8 +56,8 @@ func TestTCPChecksumVerifiesToZero(t *testing.T) {
 	binary.BigEndian.PutUint16(pseudo[10:12], uint16(len(seg)))
 	copy(pseudo[12:], seg)
 
-	if got := internetChecksum(pseudo); got != 0xffff {
-		t.Fatalf("checksum self-verification failed: got %#x, want 0xffff", got)
+	if got := internetChecksum(pseudo); got != 0 {
+		t.Fatalf("checksum self-verification failed: got %#x, want 0", got)
 	}
 }
 
