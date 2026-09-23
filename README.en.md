@@ -109,6 +109,8 @@ Agent configuration parameters can be passed via command-line flags, environment
 
 Configuration precedence (lowest to highest): **Defaults < JSON Config < Environment Variables < Explicit CLI Flags**.
 
+For legacy configurations, `KOMARI_ENDPOINT` and `KOMARI_TOKEN` are still accepted. When both names are set, `AGENT_ENDPOINT` and `AGENT_TOKEN` take precedence.
+
 ### Parameter Reference
 
 | JSON Field | Environment Variable | CLI Flag | Description | Supported Since |

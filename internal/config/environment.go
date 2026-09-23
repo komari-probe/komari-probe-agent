@@ -6,6 +6,11 @@ import (
 	"strconv"
 )
 
+var legacyEnvironmentNames = map[string]string{
+	"AGENT_ENDPOINT": "KOMARI_ENDPOINT",
+	"AGENT_TOKEN":    "KOMARI_TOKEN",
+}
+
 // ApplyEnvironment overlays values from environment variables declared in the
 // env tag of Config fields. A set but invalid value is an error rather than
 // being silently ignored.
@@ -20,6 +25,11 @@ func ApplyEnvironment(dst *Config, lookup func(string) (string, bool)) error {
 			continue
 		}
 		envValue, ok := lookup(envName)
+		if !ok {
+			if legacyName, exists := legacyEnvironmentNames[envName]; exists {
+				envValue, ok = lookup(legacyName)
+			}
+		}
 		if !ok {
 			continue
 		}

@@ -115,6 +115,8 @@ Sonar Agent 参数可以通过命令行参数、环境变量或 JSON 配置文�
 
 配置优先级从低到高为：**默认值 < JSON 配置文件 < 环境变量 < 显式命令行参数**。
 
+为兼容旧配置，`KOMARI_ENDPOINT` 和 `KOMARI_TOKEN` 仍可使用；对应的 `AGENT_ENDPOINT` 和 `AGENT_TOKEN` 同时设置时，优先使用 `AGENT_*`。
+
 ### 参数对照字典
 
 | JSON 字段 | 环境变量 | 命令行参数 | 说明 | 支持版本 |
