@@ -45,6 +45,7 @@ func newCheckMemCmd(cfg *config.Config) *cobra.Command {
 			}
 
 			printRamInfo(collector.MemoryHtopLike())
+			printRamInfo(collector.MemoryFromAvailable())
 			printRamInfo(collector.MemoryGopsutil())
 			printRamInfo(collector.MemoryFromFree())
 

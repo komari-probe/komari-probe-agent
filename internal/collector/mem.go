@@ -114,6 +114,34 @@ func MemoryHtopLike() RAMInfo {
 	return ramInfo
 }
 
+// MemoryFromAvailable computes used memory the way modern `free`/`free -h`
+// does: total minus the kernel-reported MemAvailable. MemAvailable already
+// accounts for reclaimable caches/buffers (and the kernel's own reclaim
+// overhead), so unlike the older free+cached+buffers heuristic in
+// MemoryHtopLike, it matches what `free -h` actually prints.
+func MemoryFromAvailable() RAMInfo {
+	ramInfo := RAMInfo{Mode: "available"}
+	if runtime.GOOS == "linux" {
+		info, err := ReadProcMeminfo()
+		if err == nil {
+			return ramInfoFromAvailable(info)
+		}
+	}
+	return ramInfo
+}
+
+func ramInfoFromAvailable(info *ProcMemInfo) RAMInfo {
+	ramInfo := RAMInfo{Mode: "available"}
+	if info.MemTotal == 0 || info.MemAvailable == 0 {
+		return ramInfo
+	}
+	ramInfo.Total = info.MemTotal
+	if info.MemAvailable < info.MemTotal {
+		ramInfo.Used = info.MemTotal - info.MemAvailable
+	}
+	return ramInfo
+}
+
 func MemoryGopsutil() RAMInfo {
 	ramInfo := RAMInfo{Mode: "gopsutil"}
 	v, err := mem.VirtualMemory()
@@ -195,6 +223,12 @@ func (c *Collector) RAM() RAMInfo {
 	}
 
 	if runtime.GOOS == "linux" {
+		// MemAvailable-based accounting matches `free -h`; only kernels older
+		// than 3.14 lack it, in which case fall back to the htop-style heuristic.
+		a := MemoryFromAvailable()
+		if a.Total > 0 {
+			return a
+		}
 		h := MemoryHtopLike()
 		if h.Total > 0 {
 			return h
