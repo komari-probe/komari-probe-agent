@@ -6,20 +6,20 @@ BUILD_DIR="${1:-build}"
 CHECKSUM_FILE="${BUILD_DIR}/checksums.txt"
 
 expected_assets=(
-  komari-agent-darwin-amd64
-  komari-agent-darwin-arm64
-  komari-agent-freebsd-386
-  komari-agent-freebsd-amd64
-  komari-agent-freebsd-arm
-  komari-agent-freebsd-arm64
-  komari-agent-linux-386
-  komari-agent-linux-amd64
-  komari-agent-linux-arm
-  komari-agent-linux-arm64
-  komari-agent-linux-loong64
-  komari-agent-windows-386.exe
-  komari-agent-windows-amd64.exe
-  komari-agent-windows-arm64.exe
+  sonar-agent-darwin-amd64
+  sonar-agent-darwin-arm64
+  sonar-agent-freebsd-386
+  sonar-agent-freebsd-amd64
+  sonar-agent-freebsd-arm
+  sonar-agent-freebsd-arm64
+  sonar-agent-linux-386
+  sonar-agent-linux-amd64
+  sonar-agent-linux-arm
+  sonar-agent-linux-arm64
+  sonar-agent-linux-loong64
+  sonar-agent-windows-386.exe
+  sonar-agent-windows-amd64.exe
+  sonar-agent-windows-arm64.exe
 )
 
 if [ ! -d "$BUILD_DIR" ]; then
@@ -32,7 +32,7 @@ if [ ! -f "$CHECKSUM_FILE" ]; then
 fi
 
 expected_list=$(printf '%s\n' "${expected_assets[@]}" | sort)
-actual_list=$(find "$BUILD_DIR" -maxdepth 1 -type f -name 'komari-agent-*' -printf '%f\n' | sort)
+actual_list=$(find "$BUILD_DIR" -maxdepth 1 -type f -name 'sonar-agent-*' -printf '%f\n' | sort)
 if [ "$actual_list" != "$expected_list" ]; then
   echo "Release binaries do not match the supported target matrix:" >&2
   diff -u <(printf '%s\n' "$expected_list") <(printf '%s\n' "$actual_list") || true

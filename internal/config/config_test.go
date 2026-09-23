@@ -28,6 +28,44 @@ func TestApplyEnvironmentOverlaysValues(t *testing.T) {
 	}
 }
 
+func TestApplyEnvironmentSupportsLegacyKomariNames(t *testing.T) {
+	t.Run("legacy names are used when current names are unset", func(t *testing.T) {
+		cfg := Default()
+		env := map[string]string{
+			"KOMARI_ENDPOINT": "https://legacy.example.com",
+			"KOMARI_TOKEN":    "legacy-token",
+		}
+		if err := ApplyEnvironment(&cfg, func(name string) (string, bool) {
+			value, ok := env[name]
+			return value, ok
+		}); err != nil {
+			t.Fatalf("ApplyEnvironment() error = %v", err)
+		}
+		if cfg.Endpoint != env["KOMARI_ENDPOINT"] || cfg.Token != env["KOMARI_TOKEN"] {
+			t.Fatalf("legacy values were not applied: endpoint=%q token=%q", cfg.Endpoint, cfg.Token)
+		}
+	})
+
+	t.Run("current names take precedence", func(t *testing.T) {
+		cfg := Default()
+		env := map[string]string{
+			"AGENT_ENDPOINT":  "https://sonar.example.com",
+			"AGENT_TOKEN":     "sonar-token",
+			"KOMARI_ENDPOINT": "https://legacy.example.com",
+			"KOMARI_TOKEN":    "legacy-token",
+		}
+		if err := ApplyEnvironment(&cfg, func(name string) (string, bool) {
+			value, ok := env[name]
+			return value, ok
+		}); err != nil {
+			t.Fatalf("ApplyEnvironment() error = %v", err)
+		}
+		if cfg.Endpoint != env["AGENT_ENDPOINT"] || cfg.Token != env["AGENT_TOKEN"] {
+			t.Fatalf("current names did not take precedence: endpoint=%q token=%q", cfg.Endpoint, cfg.Token)
+		}
+	})
+}
+
 func TestConfigValidate(t *testing.T) {
 	tests := []struct {
 		name string

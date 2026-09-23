@@ -39,7 +39,7 @@ func TestRunDownloadsVerifiedReleaseBeforeApplying(t *testing.T) {
 	}))
 	defer server.Close()
 
-	target := filepath.Join(t.TempDir(), "komari-agent")
+	target := filepath.Join(t.TempDir(), "sonar-agent")
 	if err := os.WriteFile(target, []byte("old"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +130,7 @@ func TestLatestNightlyUsesNewestCompatiblePrerelease(t *testing.T) {
 
 func TestChecksumFor(t *testing.T) {
 	valid := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-	got, err := checksumFor(valid+" *komari-agent-linux-amd64\n", "komari-agent-linux-amd64")
+	got, err := checksumFor(valid+" *sonar-agent-linux-amd64\n", "sonar-agent-linux-amd64")
 	if err != nil || got != valid {
 		t.Fatalf("checksumFor() = %q, %v", got, err)
 	}

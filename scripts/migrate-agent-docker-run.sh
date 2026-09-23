@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Migrate a single docker run Agent container without Compose or Coolify.
 set -u -o pipefail
-CONTAINER=""; TARGET_IMAGE=""; CONFIG_PATH="/app/auto-discovery.json"; BACKUP_ROOT="/var/backups/komari-agent-docker-run"; BACKUP_DIR=""; OLD_NAME=""; CONFIG_CAPTURED=0; CONFIG_MOUNTED=0; CONFIG_BACKUP=""; CONFIG_HOST_PATH=""
-die(){ echo "[komari-agent-docker-run] ERROR: $*" >&2; exit 1; }; log(){ echo "[komari-agent-docker-run] $*"; }
+CONTAINER=""; TARGET_IMAGE=""; CONFIG_PATH="/app/auto-discovery.json"; BACKUP_ROOT="/var/backups/sonar-agent-docker-run"; BACKUP_DIR=""; OLD_NAME=""; CONFIG_CAPTURED=0; CONFIG_MOUNTED=0; CONFIG_BACKUP=""; CONFIG_HOST_PATH=""; DRY_RUN=0
+die(){ echo "[sonar-agent-docker-run] ERROR: $*" >&2; exit 1; }; log(){ echo "[sonar-agent-docker-run] $*"; }
 usage(){ cat <<'EOF'
 Usage: sudo bash migrate-agent-docker-run.sh --container NAME --target-image IMAGE [options]
 
@@ -13,15 +13,14 @@ the old container if the new one cannot run. No Compose or Coolify is needed.
 Options:
   --config-path PATH       Credential file in the container (default /app/auto-discovery.json)
   --config-host-path PATH  Persistent host path for a container-local credential
-  --backup-root PATH       Default /var/backups/komari-agent-docker-run
+  --backup-root PATH       Default /var/backups/sonar-agent-docker-run
+  --dry-run                Validate and print the plan without pulling or changing anything
 EOF
 }
-while [ $# -gt 0 ]; do case "$1" in --container) CONTAINER=$2;shift;;--target-image) TARGET_IMAGE=$2;shift;;--config-path) CONFIG_PATH=$2;shift;;--config-host-path) CONFIG_HOST_PATH=$2;shift;;--backup-root) BACKUP_ROOT=$2;shift;;-h|--help) usage;exit;;*) die "Unknown option: $1";;esac;shift;done
+while [ $# -gt 0 ]; do case "$1" in --container) CONTAINER=$2;shift;;--target-image) TARGET_IMAGE=$2;shift;;--config-path) CONFIG_PATH=$2;shift;;--config-host-path) CONFIG_HOST_PATH=$2;shift;;--backup-root) BACKUP_ROOT=$2;shift;;--dry-run) DRY_RUN=1;;-h|--help) usage;exit;;*) die "Unknown option: $1";;esac;shift;done
 [ "${EUID:-$(id -u)}" -eq 0 ] || die "Run as root."; command -v docker >/dev/null || die "docker is required"; command -v python3 >/dev/null || die "python3 is required"; command -v curl >/dev/null || die "curl is required"
 [ -n "$CONTAINER" ] && [ -n "$TARGET_IMAGE" ] || { usage; exit 1; }; docker inspect "$CONTAINER" >/dev/null 2>&1 || die "Container not found: $CONTAINER"
-CID=$(docker inspect -f '{{.Id}}' "$CONTAINER"); INSPECT_FILE=/tmp/komari-agent-inspect.$$; docker inspect "$CONTAINER" > "$INSPECT_FILE"; trap 'rm -f "$INSPECT_FILE"' EXIT
-ID=$(date -u +%Y%m%dT%H%M%SZ); BACKUP_DIR="$BACKUP_ROOT/$ID"; mkdir -p "$BACKUP_DIR"; cp "$INSPECT_FILE" "$BACKUP_DIR/container.inspect.json"; CONFIG_BACKUP="$BACKUP_DIR/$(basename "$CONFIG_PATH")"
-docker cp "$CID:$CONFIG_PATH" "$CONFIG_BACKUP" >/dev/null 2>&1 && [ -f "$CONFIG_BACKUP" ] && CONFIG_CAPTURED=1 || true
+CID=$(docker inspect -f '{{.Id}}' "$CONTAINER"); INSPECT_FILE=/tmp/sonar-agent-inspect.$$; docker inspect "$CONTAINER" > "$INSPECT_FILE"; trap 'rm -f "$INSPECT_FILE"' EXIT
 if python3 - "$CONFIG_PATH" "$INSPECT_FILE" <<'PY'
 import json, sys
 path = sys.argv[1]
@@ -33,6 +32,13 @@ raise SystemExit(1)
 PY
 then CONFIG_MOUNTED=1; fi
 CONFIG_HOST_PATH=${CONFIG_HOST_PATH:-"$BACKUP_ROOT/persistent/$CONTAINER/$(basename "$CONFIG_PATH")"}
+if [ "$DRY_RUN" -eq 1 ]; then
+    log "Plan: container=$CONTAINER; old-image=$(docker inspect --format '{{.Config.Image}}' "$CONTAINER"); target=$TARGET_IMAGE; config=$CONFIG_PATH; config-mounted=$CONFIG_MOUNTED; credential-host-path=$CONFIG_HOST_PATH; backup-root=$BACKUP_ROOT"
+    log "Dry run finished; no changes were made and the target image was not pulled."
+    exit 0
+fi
+ID=$(date -u +%Y%m%dT%H%M%SZ); BACKUP_DIR="$BACKUP_ROOT/$ID"; mkdir -p "$BACKUP_DIR"; cp "$INSPECT_FILE" "$BACKUP_DIR/container.inspect.json"; CONFIG_BACKUP="$BACKUP_DIR/$(basename "$CONFIG_PATH")"
+docker cp "$CID:$CONFIG_PATH" "$CONFIG_BACKUP" >/dev/null 2>&1 && [ -f "$CONFIG_BACKUP" ] && CONFIG_CAPTURED=1 || true
 docker pull "$TARGET_IMAGE" || die "Target image pull failed; old container is unchanged."
 OLD_NAME="${CONTAINER}.pre-migration-${ID}"; docker stop "$CONTAINER"; docker rename "$CONTAINER" "$OLD_NAME"
 payload(){ python3 - "$TARGET_IMAGE" "$CONFIG_HOST_PATH:$CONFIG_PATH:ro" "$CONFIG_CAPTURED" "$CONFIG_MOUNTED" "$INSPECT_FILE" <<'PY'

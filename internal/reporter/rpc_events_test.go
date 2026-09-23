@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/komari-probe/komari-probe-agent/internal/collector"
-	v2 "github.com/komari-probe/komari-probe-agent/internal/rpc/v2"
+	"github.com/sonar-probe/sonar-agent/internal/collector"
+	v2 "github.com/sonar-probe/sonar-agent/internal/rpc/v2"
 )
 
 func TestV2AckEventIDsSnapshotAndClear(t *testing.T) {

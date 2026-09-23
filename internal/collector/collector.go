@@ -1,8 +1,8 @@
 package collector
 
 import (
-	"github.com/komari-probe/komari-probe-agent/internal/collector/netstatic"
-	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
+	"github.com/sonar-probe/sonar-agent/internal/collector/netstatic"
+	"github.com/sonar-probe/sonar-agent/internal/connectivity"
 )
 
 // Options contains the collection-specific portion of the Agent configuration.

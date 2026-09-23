@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/komari-probe/komari-probe-agent/internal/config"
-	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
+	"github.com/sonar-probe/sonar-agent/internal/config"
+	"github.com/sonar-probe/sonar-agent/internal/connectivity"
 )
 
 func discoveryConfig(endpoint string) config.Config {

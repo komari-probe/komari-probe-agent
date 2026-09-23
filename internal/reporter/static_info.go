@@ -3,11 +3,11 @@ package reporter
 import (
 	"context"
 	"fmt"
-	log "github.com/komari-probe/komari-probe-agent/internal/logging"
+	log "github.com/sonar-probe/sonar-agent/internal/logging"
 	"time"
 
-	"github.com/komari-probe/komari-probe-agent/internal/collector"
-	"github.com/komari-probe/komari-probe-agent/internal/version"
+	"github.com/sonar-probe/sonar-agent/internal/collector"
+	"github.com/sonar-probe/sonar-agent/internal/version"
 )
 
 func (r *Reporter) RunStaticInfoReporter(ctx context.Context) {

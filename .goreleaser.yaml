@@ -1,19 +1,19 @@
 version: 2
 
-project_name: komari-probe-agent
+project_name: sonar-agent
 
 dist: build
 
 builds:
-  - id: komari-agent
-    main: ./cmd/komari-probe-agent
-    binary: komari-agent
+  - id: sonar-agent
+    main: ./cmd/sonar-agent
+    binary: sonar-agent
     env:
       - CGO_ENABLED=0
     flags:
       - -trimpath
     ldflags:
-      - -X github.com/komari-probe/komari-probe-agent/internal/version.CurrentVersion={{ .Version }}
+      - -X github.com/sonar-probe/sonar-agent/internal/version.CurrentVersion={{ .Version }}
     goos:
       - windows
       - linux
@@ -40,12 +40,12 @@ builds:
         goarch: loong64
 
 archives:
-  - id: komari-agent
+  - id: sonar-agent
     ids:
-      - komari-agent
+      - sonar-agent
     formats:
       - binary
-    name_template: "komari-agent-{{ .Os }}-{{ .Arch }}"
+    name_template: "sonar-agent-{{ .Os }}-{{ .Arch }}"
 
 checksum:
   name_template: checksums.txt

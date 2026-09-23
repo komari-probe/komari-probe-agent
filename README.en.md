@@ -1,38 +1,38 @@
-# Komari Probe Agent
+# Sonar Agent
 
-Komari Probe Agent is a lightweight monitoring component deployed on client servers to collect system metrics, execute ping probes, and report telemetry back to the Komari Probe central server.
+Sonar Agent is a lightweight monitoring component deployed on client servers to collect system metrics, execute ping probes, and report telemetry back to the Sonar central server.
 
 [English](README.en.md) | [中文](README.md)
 
-> 💡 **Tip**: To deploy the central server and web dashboard, see the [komari-probe server repository](https://github.com/komari-probe/komari-probe).
+> 💡 **Tip**: To deploy the central server and web dashboard, see the [Sonar server repository](https://github.com/sonar-probe/sonar).
 
 ---
 
 ## Installation
 
-> 💡 **Easiest Method (Recommended)**: Log in to the Komari Probe Admin Panel (`/admin`), navigate to **Node Management** $\rightarrow$ click **Add Node**, and simply **copy the auto-generated one-click command** from the popup. The system automatically populates your panel address and unique token — just paste and run on your target machine!
+> 💡 **Easiest Method (Recommended)**: Log in to the Sonar Admin Panel (`/admin`), navigate to **Node Management** $\rightarrow$ click **Add Node**, and simply **copy the auto-generated one-click command** from the popup. The system automatically populates your panel address and unique token — just paste and run on your target machine!
 
 If installing silently via CI/CD or automated scripts without using the web dashboard, use the standard commands below:
 
 ### 1. Host Installation
-Compatible with Linux and macOS. Installs into `/opt/komari` by default and registers as a system service `komari-agent.service`.
+Compatible with Linux and macOS. Installs into `/opt/komari` by default and registers as a system service `sonar-agent.service`.
 
 - **Stable Release**:
   ```bash
-  curl -fsSL https://raw.githubusercontent.com/komari-probe/komari-probe-agent/main/install.sh | sudo bash -s -- \
+  curl -fsSL https://raw.githubusercontent.com/sonar-probe/sonar-agent/main/install.sh | sudo bash -s -- \
     -e "http://<SERVER_IP>:25774" \
     -t "<YOUR_AGENT_TOKEN>"
   ```
 - **Preview / Beta Release (e.g., `v1.0.0-beta.1`)**:
   ```bash
-  curl -fsSL https://raw.githubusercontent.com/komari-probe/komari-probe-agent/main/install.sh | sudo bash -s -- \
+  curl -fsSL https://raw.githubusercontent.com/sonar-probe/sonar-agent/main/install.sh | sudo bash -s -- \
     -e "http://<SERVER_IP>:25774" \
     -t "<YOUR_AGENT_TOKEN>" \
     -v "v1.0.0-beta.1"
   ```
 - **Snapshot Release**:
   ```bash
-  curl -fsSL https://raw.githubusercontent.com/komari-probe/komari-probe-agent/main/install.sh | sudo bash -s -- \
+  curl -fsSL https://raw.githubusercontent.com/sonar-probe/sonar-agent/main/install.sh | sudo bash -s -- \
     -e "http://<SERVER_IP>:25774" \
     -t "<YOUR_AGENT_TOKEN>" \
     --snapshot
@@ -45,10 +45,10 @@ Compatible with Linux and macOS. Installs into `/opt/komari` by default and regi
 - **Stable**:
   ```bash
   docker run -d \
-    --name komari-agent \
+    --name sonar-agent \
     --restart unless-stopped \
     --net=host \
-    ghcr.io/komari-probe/komari-probe-agent:latest \
+    ghcr.io/sonar-probe/sonar-agent:latest \
     -e "http://<SERVER_IP>:25774" -t "<YOUR_AGENT_TOKEN>"
   ```
 - **Preview / Beta**: Change tag to `:v1.0.0-beta.1`.
@@ -62,39 +62,39 @@ If you already have upstream Komari Monitor Agent running, automated migration s
 
 ### 1. Host Agent Migration:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/komari-probe/komari-probe-agent/main/scripts/migrate-agent-host.sh -o migrate-agent-host.sh
+curl -fsSL https://raw.githubusercontent.com/sonar-probe/sonar-agent/main/scripts/migrate-agent-host.sh -o migrate-agent-host.sh
 sudo bash migrate-agent-host.sh --tag v1.0.0-beta.1
 ```
 
 ### 2. Docker Agent Migration:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/komari-probe/komari-probe-agent/main/scripts/migrate-agent-docker.sh -o migrate-agent-docker.sh
+curl -fsSL https://raw.githubusercontent.com/sonar-probe/sonar-agent/main/scripts/migrate-agent-docker.sh -o migrate-agent-docker.sh
 sudo bash migrate-agent-docker.sh \
-  --container komari-agent \
-  --target-image ghcr.io/komari-probe/komari-probe-agent:v1.0.0-beta.1
+  --container sonar-agent \
+  --target-image ghcr.io/sonar-probe/sonar-agent:v1.0.0-beta.1
 ```
 
 ---
 
 ## Configuration & CLI Reference
 
-Agent configuration parameters can be passed via command-line flags, environment variables, or a JSON configuration file. The binary is named `komari-agent`.
+Agent configuration parameters can be passed via command-line flags, environment variables, or a JSON configuration file. The binary is named `sonar-agent`.
 
 ### Quick Start Examples
 
 1. **Direct CLI flags**:
    ```bash
-   ./komari-agent --endpoint "https://example.com" --token "your-token"
+   ./sonar-agent --endpoint "https://example.com" --token "your-token"
    ```
 2. **Environment variables**:
    ```bash
    export AGENT_ENDPOINT="https://example.com"
    export AGENT_TOKEN="your-token"
-   ./komari-agent
+   ./sonar-agent
    ```
 3. **JSON configuration file**:
    ```bash
-   ./komari-agent --config ./config.json
+   ./sonar-agent --config ./config.json
    ```
 
 `config.json` Example:
@@ -108,6 +108,8 @@ Agent configuration parameters can be passed via command-line flags, environment
 ```
 
 Configuration precedence (lowest to highest): **Defaults < JSON Config < Environment Variables < Explicit CLI Flags**.
+
+For legacy configurations, `KOMARI_ENDPOINT` and `KOMARI_TOKEN` are still accepted. When both names are set, `AGENT_ENDPOINT` and `AGENT_TOKEN` take precedence.
 
 ### Parameter Reference
 
@@ -131,15 +133,15 @@ Configuration precedence (lowest to highest): **Defaults < JSON Config < Environ
 
 View all available options:
 ```bash
-./komari-agent --help
+./sonar-agent --help
 ```
 
 ---
 
 ## In-Place Updates
 
-On hosts running Komari Probe Agent:
+On hosts running Sonar Agent:
 ```bash
-komari-agent update
+sonar-agent update
 ```
 This checks the latest GitHub Release, downloads the platform-specific binary, verifies its SHA-256 against `checksums.txt`, and safely replaces the executable.

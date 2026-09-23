@@ -1,6 +1,6 @@
 package collector
 
-import "github.com/komari-probe/komari-probe-agent/internal/collector/gpu"
+import "github.com/sonar-probe/sonar-agent/internal/collector/gpu"
 
 // GPUDevice is the metrics reported for one GPU device.
 type GPUDevice = gpu.Device

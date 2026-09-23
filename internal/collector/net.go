@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/komari-probe/komari-probe-agent/internal/collector/netstatic"
 	"github.com/shirou/gopsutil/v4/net"
+	"github.com/sonar-probe/sonar-agent/internal/collector/netstatic"
 )
 
 func (c *Collector) ConnectionsCount() (tcpCount, udpCount int, err error) {

@@ -4,18 +4,18 @@ package app
 import (
 	"context"
 	"fmt"
-	log "github.com/komari-probe/komari-probe-agent/internal/logging"
+	log "github.com/sonar-probe/sonar-agent/internal/logging"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 
-	"github.com/komari-probe/komari-probe-agent/internal/collector"
-	"github.com/komari-probe/komari-probe-agent/internal/config"
-	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
-	"github.com/komari-probe/komari-probe-agent/internal/discovery"
-	"github.com/komari-probe/komari-probe-agent/internal/reporter"
-	"github.com/komari-probe/komari-probe-agent/internal/version"
+	"github.com/sonar-probe/sonar-agent/internal/collector"
+	"github.com/sonar-probe/sonar-agent/internal/config"
+	"github.com/sonar-probe/sonar-agent/internal/connectivity"
+	"github.com/sonar-probe/sonar-agent/internal/discovery"
+	"github.com/sonar-probe/sonar-agent/internal/reporter"
+	"github.com/sonar-probe/sonar-agent/internal/version"
 )
 
 // Run starts the Agent runtime after command-line configuration has been
@@ -119,7 +119,7 @@ func buildRuntime(ctx context.Context, cfg config.Config) (runtime, error) {
 		EnableGPU:          cfg.EnableGPU,
 	}, hostCollector, connections)
 
-	log.Println("Komari Probe Agent", version.CurrentVersion)
+	log.Println("Sonar Agent", version.CurrentVersion)
 	return &agentRuntime{collector: hostCollector, reporter: agentReporter}, nil
 }
 

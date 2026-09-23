@@ -1,10 +1,10 @@
 package cmd
 
 import (
-	log "github.com/komari-probe/komari-probe-agent/internal/logging"
+	log "github.com/sonar-probe/sonar-agent/internal/logging"
 
-	"github.com/komari-probe/komari-probe-agent/internal/collector"
-	"github.com/komari-probe/komari-probe-agent/internal/config"
+	"github.com/sonar-probe/sonar-agent/internal/collector"
+	"github.com/sonar-probe/sonar-agent/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -45,6 +45,7 @@ func newCheckMemCmd(cfg *config.Config) *cobra.Command {
 			}
 
 			printRamInfo(collector.MemoryHtopLike())
+			printRamInfo(collector.MemoryFromAvailable())
 			printRamInfo(collector.MemoryGopsutil())
 			printRamInfo(collector.MemoryFromFree())
 

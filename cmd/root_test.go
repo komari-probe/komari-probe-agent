@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/komari-probe/komari-probe-agent/internal/config"
+	"github.com/sonar-probe/sonar-agent/internal/config"
 	"github.com/spf13/cobra"
 )
 

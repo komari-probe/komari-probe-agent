@@ -82,7 +82,7 @@ jobs:
         with:
           name: release-assets
           path: |
-            build/komari-agent-*
+            build/sonar-agent-*
             build/checksums.txt
 
   publish-binaries:
@@ -126,8 +126,8 @@ jobs:
 
       - name: Prepare Docker build context
         run: |
-          cp artifacts/komari-agent-linux-amd64 .
-          cp artifacts/komari-agent-linux-arm64 .
+          cp artifacts/sonar-agent-linux-amd64 .
+          cp artifacts/sonar-agent-linux-arm64 .
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

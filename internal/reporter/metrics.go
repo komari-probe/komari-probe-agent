@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/komari-probe/komari-probe-agent/internal/collector"
+	"github.com/sonar-probe/sonar-agent/internal/collector"
 )
 
 type report struct {

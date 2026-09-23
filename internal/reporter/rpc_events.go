@@ -3,11 +3,11 @@ package reporter
 import (
 	"context"
 	"encoding/json"
-	log "github.com/komari-probe/komari-probe-agent/internal/logging"
+	log "github.com/sonar-probe/sonar-agent/internal/logging"
 	"time"
 
-	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
-	v2 "github.com/komari-probe/komari-probe-agent/internal/rpc/v2"
+	"github.com/sonar-probe/sonar-agent/internal/connectivity"
+	v2 "github.com/sonar-probe/sonar-agent/internal/rpc/v2"
 )
 
 const (

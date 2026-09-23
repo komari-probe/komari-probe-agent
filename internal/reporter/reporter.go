@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/komari-probe/komari-probe-agent/internal/collector"
-	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
+	"github.com/sonar-probe/sonar-agent/internal/collector"
+	"github.com/sonar-probe/sonar-agent/internal/connectivity"
 )
 
 // Options contains the reporting and panel-connectivity configuration for one

@@ -1,6 +1,6 @@
 # GitHub Actions
 
-Komari Probe Agent uses three workflows with non-overlapping responsibilities.
+Sonar Agent uses three workflows with non-overlapping responsibilities.
 
 | Workflow | Trigger | Output |
 | --- | --- | --- |
@@ -17,7 +17,7 @@ should be configured as a required check for `main`.
 
 `nightly.yaml` accepts only the current `main` commit. It creates a prerelease
 tagged `nightly-YYYYMMDD-HHMM` in UTC, removes older `nightly-*` prereleases,
-and publishes the mutable `:nightly` Docker tag. Komari Probe Agent does not self-update;
+and publishes the mutable `:nightly` Docker tag. Sonar Agent does not self-update;
 container users must recreate or update their container.
 
 ## Stable releases
@@ -32,9 +32,9 @@ the branch head. Do not use it for nightly tags.
 
 ## Asset conventions
 
-- Binaries are named `komari-agent-${GOOS}-${GOARCH}`; Windows adds `.exe`.
-- The Dockerfile requires `komari-agent-linux-amd64` and
-  `komari-agent-linux-arm64` in its build context.
+- Binaries are named `sonar-agent-${GOOS}-${GOARCH}`; Windows adds `.exe`.
+- The Dockerfile requires `sonar-agent-linux-amd64` and
+  `sonar-agent-linux-arm64` in its build context.
 - The version is embedded through `internal/version.CurrentVersion`.
 - Workflows build with Go 1.27.1, the current patch release that fixes the
   reachable standard-library vulnerabilities found by `govulncheck`; `go.mod`
@@ -46,4 +46,4 @@ the branch head. Do not use it for nightly tags.
 - Release and nightly binaries receive signed GitHub artifact attestations;
   published container images receive signed registry attestations. Verify a
   downloaded binary with `gh attestation verify <file> --repo
-  komari-probe/komari-probe-agent`.
+  sonar-probe/sonar-agent`.

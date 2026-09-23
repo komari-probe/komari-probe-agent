@@ -14,9 +14,9 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/komari-probe/komari-probe-agent/internal/collector"
-	"github.com/komari-probe/komari-probe-agent/internal/connectivity"
-	v2 "github.com/komari-probe/komari-probe-agent/internal/rpc/v2"
+	"github.com/sonar-probe/sonar-agent/internal/collector"
+	"github.com/sonar-probe/sonar-agent/internal/connectivity"
+	v2 "github.com/sonar-probe/sonar-agent/internal/rpc/v2"
 )
 
 func newConnectionTestReporter(endpoint string) *Reporter {
