@@ -99,7 +99,7 @@ jobs:
           go build -trimpath -ldflags="-X github.com/sonar-probe/sonar-agent/internal/version.CurrentVersion=${VERSION}" -o "${BINARY_NAME}" ./cmd/sonar-agent
 
       - name: Upload binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sonar-agent-${{ matrix.goos }}-${{ matrix.goarch }}
           path: sonar-agent-${{ matrix.goos }}-${{ matrix.goarch }}*

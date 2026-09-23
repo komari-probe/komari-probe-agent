@@ -78,7 +78,7 @@ jobs:
           subject-checksums: build/checksums.txt
 
       - name: Upload release assets
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-assets
           path: |
