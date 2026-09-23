@@ -35,8 +35,10 @@ log_config() {
     printf '%b\n' "${CYAN}[CONFIG]${NC} $1"
 }
 
-# $EUID 是 bash 专有变量, ash/dash 下未定义, 补 POSIX 回退
-EUID=${EUID:-$(id -u)}
+# $EUID 是 bash 专有变量（只读）, ash/dash 下未定义, 只在非 bash shell 里补 POSIX 回退
+if [ -z "${BASH_VERSION:-}" ]; then
+    EUID=${EUID:-$(id -u)}
+fi
 
 # Default values
 service_name="sonar-agent"
@@ -368,6 +370,45 @@ resolve_snapshot_version() {
     return 1
 }
 
+# GitHub's /releases/latest only resolves to a release that isn't marked
+# prerelease. While every sonar-agent release is currently tagged as a
+# prerelease, that endpoint 404s and a plain install with no -v/--snapshot
+# flag would otherwise fail outright. Fall back to the most recently
+# published release (regardless of prerelease status) in that case.
+resolve_latest_published_version() {
+    releases_api_url="https://api.github.com/repos/sonar-probe/sonar-agent/releases?per_page=100"
+    if [ -n "$github_proxy" ]; then
+        releases_api_urls="${github_proxy}/${releases_api_url} ${releases_api_url}"
+    else
+        releases_api_urls="$releases_api_url"
+    fi
+
+    for api_url in $releases_api_urls; do
+        if ! releases_json=$(curl -fsSL --connect-timeout 15 \
+            -H "Accept: application/vnd.github+json" \
+            -H "User-Agent: sonar-agent-installer" \
+            "$api_url"); then
+            releases_json=""
+        fi
+
+        if [ -n "$releases_json" ]; then
+            RESOLVED_LATEST_VERSION=$(printf '%s\n' "$releases_json" |
+                grep -o '"tag_name":[[:space:]]*"[^"]*"' |
+                head -n 1 |
+                sed 's/.*"\([^"]*\)"$/\1/')
+            if [ -n "$RESOLVED_LATEST_VERSION" ]; then
+                return 0
+            fi
+        fi
+
+        if [ "$api_url" != "$releases_api_url" ]; then
+            log_warning "Failed to resolve releases through GitHub proxy, retrying directly."
+        fi
+    done
+
+    return 1
+}
+
 version_to_install="latest"
 if [ -n "$install_version" ]; then
     if [ "$install_version" = "snapshot" ]; then
@@ -388,7 +429,20 @@ fi
 
 # Construct download URL
 if [ "$version_to_install" = "latest" ]; then
-    download_path="latest/download"
+    latest_probe_url="https://github.com/sonar-probe/sonar-agent/releases/latest/download/${file_name}"
+    if curl -fsIL --connect-timeout 5 "$latest_probe_url" >/dev/null 2>&1; then
+        download_path="latest/download"
+    else
+        log_warning "No stable \"latest\" release is published yet; falling back to the most recently published release."
+        if resolve_latest_published_version; then
+            version_to_install="$RESOLVED_LATEST_VERSION"
+            download_path="download/${version_to_install}"
+            log_success "Falling back to: ${GREEN}$version_to_install${NC}"
+        else
+            log_error "Failed to resolve a fallback release version."
+            exit 1
+        fi
+    fi
 else
     download_path="download/${version_to_install}"
 fi
